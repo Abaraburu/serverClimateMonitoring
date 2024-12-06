@@ -38,8 +38,8 @@ public class serverStart extends JFrame {
                 if (!isServerRunning) {
                     System.out.println("Avvio server...");
                     testDatabaseConnection(); // Testa la connessione prima di avviare il server
-                    querySpecifica();        // Esegue la query specifica
-                    startServer();
+                    querySpecifica();        // Mostra il risultato della query specifica
+                    startServer();           // Avvia il server per gestire le query dai client
                 } else {
                     JOptionPane.showMessageDialog(serverStart.this, "Il server è già in esecuzione!");
                 }
@@ -67,7 +67,7 @@ public class serverStart extends JFrame {
         }
     }
 
-    // Metodo per eseguire la query specifica e stampare i risultati
+    // Metodo per eseguire una query specifica e mostrare i risultati
     private void querySpecifica() {
         System.out.println("Eseguendo query specifica...");
         try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
@@ -79,7 +79,7 @@ public class serverStart extends JFrame {
                     double latitudine = rs.getDouble("latitudine");
                     double longitudine = rs.getDouble("longitudine");
 
-                    System.out.printf("True test connessione DB: ID Luogo: %d, Latitudine: %.6f, Longitudine: %.6f%n",
+                    System.out.printf("ID Luogo: %d, Latitudine: %.6f, Longitudine: %.6f%n",
                             idLuogo, latitudine, longitudine);
                 }
             }
@@ -125,11 +125,11 @@ public class serverStart extends JFrame {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
-                String request;
-                while ((request = in.readLine()) != null) {
-                    System.out.println("Richiesta ricevuta: " + request);
-                    String response = handleRequest(request);
-                    out.println(response);
+                String query;
+                while ((query = in.readLine()) != null) {
+                    System.out.println("Query ricevuta: " + query);
+                    String result = executeQuery(query);
+                    out.println(result);
                 }
             } catch (IOException e) {
                 System.err.println("Errore nella comunicazione con il client: " + e.getMessage());
@@ -142,57 +142,27 @@ public class serverStart extends JFrame {
             }
         }
 
-        private String handleRequest(String request) {
-            try {
-                if (request.startsWith("REGISTRA OPERATORE")) {
-                    String[] parts = request.split(";");
-                    if (parts.length != 4) {
-                        return "Errore: dati insufficienti. Formato: REGISTRA OPERATORE;Nome;Cognome;Email";
-                    }
-                    return registraOperatore(parts[1], parts[2], parts[3]);
-                } else if (request.startsWith("RECUPERA DATI")) {
-                    return recuperaDatiClimatici();
-                } else {
-                    return "Errore: Generale";
-                }
-            } catch (Exception e) {
-                return "Errore nell'elaborazione della richiesta: " + e.getMessage();
-            }
-        }
-
-        private String registraOperatore(String nome, String cognome, String email) {
-            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-                String sql = "INSERT INTO operatoriregistrati (nome, cognome, email) VALUES (?, ?, ?)";
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setString(1, nome);
-                    stmt.setString(2, cognome);
-                    stmt.setString(3, email);
-                    stmt.executeUpdate();
-                    return "Operatore registrato con successo!";
-                }
-            } catch (SQLException e) {
-                return "Errore nella registrazione dell'operatore: " + e.getMessage();
-            }
-        }
-
-        private String recuperaDatiClimatici() {
+        // Metodo per eseguire una query generica e restituire il risultato
+        private String executeQuery(String query) {
             StringBuilder response = new StringBuilder();
             try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-                String sql = "SELECT * FROM parametriclimatici";
                 try (Statement stmt = conn.createStatement();
-                     ResultSet rs = stmt.executeQuery(sql)) {
+                     ResultSet rs = stmt.executeQuery(query)) {
+                    int columnCount = rs.getMetaData().getColumnCount();
+
+                    // Costruisce il risultato
                     while (rs.next()) {
-                        response.append("ID: ").append(rs.getInt("id_parametro"))
-                                .append(", Luogo: ").append(rs.getInt("id_luogo"))
-                                .append(", Temperatura: ").append(rs.getInt("temperatura"))
-                                .append(", Umidità: ").append(rs.getInt("umidita"))
-                                .append("\n");
+                        for (int i = 1; i <= columnCount; i++) {
+                            response.append(rs.getMetaData().getColumnName(i)).append(": ").append(rs.getString(i)).append(", ");
+                        }
+                        response.append("\n");
                     }
-                    return response.toString();
                 }
             } catch (SQLException e) {
-                return "Errore nel recupero dei dati climatici: " + e.getMessage();
+                response.append("Errore nell'esecuzione della query: ").append(e.getMessage());
+                e.printStackTrace();
             }
+            return response.toString();
         }
     }
 
