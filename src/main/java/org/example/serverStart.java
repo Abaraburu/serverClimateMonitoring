@@ -3,12 +3,14 @@ package org.example;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.sql.*;
+import java.util.*;
 
-public class serverStart extends JFrame {
+public class serverStart extends JFrame implements ClimateInterface {
 
     private JButton startServerButton;
     private JPanel serverStartPanel;
@@ -19,11 +21,10 @@ public class serverStart extends JFrame {
     private static final String USER = "postgres";
     private static final String PASSWORD = "Asdf1234";
 
-    // Porta del server
-    private static final int SERVER_PORT = 8080;
-
+    private Connection conn;
     private boolean isServerRunning = false;
 
+    // Costruttore
     public serverStart() {
         setContentPane(serverStartPanel);
         setTitle("Server Climate Monitoring");
@@ -32,141 +33,78 @@ public class serverStart extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
 
+        // Listener per il pulsante di avvio del server
         startServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (!isServerRunning) {
-                    System.out.println("Avvio server...");
-                    testDatabaseConnection(); // Testa la connessione prima di avviare il server
-                    querySpecifica();        // Mostra il risultato della query specifica
-                    startServer();           // Avvia il server per gestire le query dai client
+                    try {
+                        startRmiServer();
+                        JOptionPane.showMessageDialog(serverStart.this, "Server avviato con successo!");
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(serverStart.this, "Errore durante l'avvio del server: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                        ex.printStackTrace();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(serverStart.this, "Il server è già in esecuzione!");
                 }
             }
         });
 
+        // Listener per il pulsante di arresto del server
         stopServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 isServerRunning = false;
                 JOptionPane.showMessageDialog(serverStart.this, "Server arrestato.");
-                System.exit(0); // Puoi aggiungere una logica più sofisticata se necessario
+                System.exit(0);
             }
         });
     }
 
-    // Metodo per testare la connessione al database
-    private void testDatabaseConnection() {
-        System.out.println("Eseguendo test della connessione al database...");
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-            System.out.println("Connessione al database avvenuta con successo.");
-        } catch (SQLException e) {
-            System.err.println("Errore nella connessione al database: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // Metodo per eseguire una query specifica e mostrare i risultati
-    private void querySpecifica() {
-        System.out.println("Eseguendo query specifica...");
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-            String sql = "SELECT * FROM coordinatemonitoraggio WHERE id_luogo = 4946136;";
-            try (PreparedStatement stmt = conn.prepareStatement(sql);
-                 ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    int idLuogo = rs.getInt("id_luogo");
-                    double latitudine = rs.getDouble("latitudine");
-                    double longitudine = rs.getDouble("longitudine");
-
-                    System.out.printf("ID Luogo: %d, Latitudine: %.6f, Longitudine: %.6f%n",
-                            idLuogo, latitudine, longitudine);
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Errore nell'esecuzione della query specifica: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // Metodo per avviare il server
-    private void startServer() {
+    // Metodo per avviare il server RMI
+    private void startRmiServer() throws RemoteException {
+        ClimateInterface stub = (ClimateInterface) UnicastRemoteObject.exportObject(this, 0);
+        Registry registry = LocateRegistry.createRegistry(1099);
+        registry.rebind("ClimateService", stub);
         isServerRunning = true;
-        new Thread(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(SERVER_PORT)) {
-                JOptionPane.showMessageDialog(this, "Server avviato sulla porta " + SERVER_PORT);
-                System.out.println("Server in ascolto sulla porta " + SERVER_PORT);
-
-                while (true) {
-                    Socket clientSocket = serverSocket.accept();
-                    System.out.println("Nuovo client connesso: " + clientSocket.getInetAddress());
-                    // Gestione del client su un nuovo thread
-                    new Thread(new ClientHandler(clientSocket)).start();
-                }
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(this, "Errore nel server: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-                e.printStackTrace();
-                isServerRunning = false;
-            }
-        }).start();
+        System.out.println("Server RMI avviato e registrato.");
     }
 
-    // Classe per gestire i client
-    private class ClientHandler implements Runnable {
-        private final Socket clientSocket;
-
-        public ClientHandler(Socket clientSocket) {
-            this.clientSocket = clientSocket;
+    // Metodo per connettersi al database
+    private void dbConnection() throws SQLException {
+        if (conn == null || conn.isClosed()) {
+            conn = DriverManager.getConnection(URL, USER, PASSWORD);
+            System.out.println("Connessione al database avvenuta con successo.");
         }
+    }
 
-        @Override
-        public void run() {
-            try (
-                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
-            ) {
-                String query;
-                while ((query = in.readLine()) != null) {
-                    System.out.println("Query ricevuta: " + query);
-                    String result = executeQuery(query);
-                    out.println(result);
-                }
-            } catch (IOException e) {
-                System.err.println("Errore nella comunicazione con il client: " + e.getMessage());
-            } finally {
-                try {
-                    clientSocket.close();
-                } catch (IOException e) {
-                    System.err.println("Errore nella chiusura del socket: " + e.getMessage());
-                }
+    // Implementazione del metodo remoto per ottenere tutti i dati
+    @Override
+    public List<Map<String, String>> getAllData() throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT * FROM coordinatemonitoraggio";
+
+        try {
+            dbConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
+                row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
+                results.add(row);
             }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il recupero dei dati", e);
         }
 
-        // Metodo per eseguire una query generica e restituire il risultato
-        private String executeQuery(String query) {
-            StringBuilder response = new StringBuilder();
-            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-                try (Statement stmt = conn.createStatement();
-                     ResultSet rs = stmt.executeQuery(query)) {
-                    int columnCount = rs.getMetaData().getColumnCount();
-
-                    // Costruisce il risultato
-                    while (rs.next()) {
-                        for (int i = 1; i <= columnCount; i++) {
-                            response.append(rs.getMetaData().getColumnName(i)).append(": ").append(rs.getString(i)).append(", ");
-                        }
-                        response.append("\n");
-                    }
-                }
-            } catch (SQLException e) {
-                response.append("Errore nell'esecuzione della query: ").append(e.getMessage());
-                e.printStackTrace();
-            }
-            return response.toString();
-        }
+        return results;
     }
 
     public static void main(String[] args) {
-        new serverStart();
+        SwingUtilities.invokeLater(serverStart::new);
     }
 }
