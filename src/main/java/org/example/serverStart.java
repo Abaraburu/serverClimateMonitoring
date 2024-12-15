@@ -183,6 +183,27 @@ public class serverStart extends JFrame implements ClimateInterface {
         return results;
     }
 
+    @Override
+    public boolean validateCredentials(String userId, String password) throws RemoteException {
+        String query = "SELECT * FROM operatoriregistrati WHERE id_operatore = ? AND password = ?";
+        try {
+            dbConnection();
+            PreparedStatement stmt = conn.prepareStatement(query);
+
+            // Converte userId in Integer
+            int idOperatore = Integer.parseInt(userId.trim());
+            stmt.setInt(1, idOperatore); // Primo parametro come INTEGER
+            stmt.setString(2, password); // Secondo parametro come STRING
+
+            ResultSet rs = stmt.executeQuery();
+            return rs.next(); // Restituisce true se le credenziali esistono
+        } catch (NumberFormatException e) {
+            throw new RemoteException("L'ID Operatore deve essere un numero valido.", e);
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la validazione delle credenziali.", e);
+        }
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(serverStart::new);
     }

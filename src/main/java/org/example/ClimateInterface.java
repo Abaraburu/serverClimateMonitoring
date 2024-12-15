@@ -17,4 +17,7 @@ public interface ClimateInterface extends Remote {
 
     // Metodo per ottenere solo ID_Luogo e Nome ASCII
     List<Map<String, String>> getMinimalLocationData() throws RemoteException;
+
+    // Metodo per validare credenziali
+    boolean validateCredentials(String userId, String password) throws RemoteException;
 }
