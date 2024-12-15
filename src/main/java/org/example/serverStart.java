@@ -104,6 +104,85 @@ public class serverStart extends JFrame implements ClimateInterface {
         return results;
     }
 
+    // Implementazione del metodo remoto per ottenere i dati minimali
+    @Override
+    public List<Map<String, String>> getMinimalLocationData() throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT id_luogo, nome_ascii FROM coordinatemonitoraggio ORDER BY nome_ascii ASC";
+
+        try {
+            dbConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                row.put("nome_ascii", rs.getString("nome_ascii"));
+                results.add(row);
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il recupero dei dati minimali", e);
+        }
+
+        return results;
+    }
+
+    // Implementazione del metodo remoto per la ricerca per coordinate
+    @Override
+    public List<Map<String, String>> searchByCoordinates(double latitude, double longitude) throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT * FROM coordinatemonitoraggio WHERE latitudine = ? AND longitudine = ?";
+
+        try {
+            dbConnection();
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setDouble(1, latitude);
+            stmt.setDouble(2, longitude);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
+                row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
+                row.put("nome_ascii", rs.getString("nome_ascii"));
+                results.add(row);
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la ricerca per coordinate", e);
+        }
+
+        return results;
+    }
+
+    // Implementazione del metodo remoto per la ricerca per nome
+    @Override
+    public List<Map<String, String>> searchByName(String name) throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT * FROM coordinatemonitoraggio WHERE nome_ascii ILIKE ?";
+
+        try {
+            dbConnection();
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, "%" + name + "%");
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
+                row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
+                row.put("nome_ascii", rs.getString("nome_ascii"));
+                results.add(row);
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la ricerca per nome", e);
+        }
+
+        return results;
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(serverStart::new);
     }
