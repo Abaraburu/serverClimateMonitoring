@@ -15,6 +15,7 @@ public class serverStart extends JFrame implements ClimateInterface {
     private JButton startServerButton;
     private JPanel serverStartPanel;
     private JButton stopServerButton;
+    private JLabel status;
 
     // Configurazione del database
     private static final String URL = "jdbc:postgresql://localhost:5432/climatedb";
@@ -55,9 +56,14 @@ public class serverStart extends JFrame implements ClimateInterface {
         stopServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                isServerRunning = false;
-                JOptionPane.showMessageDialog(serverStart.this, "Server arrestato.");
-                System.exit(0);
+                if (isServerRunning) {
+                    isServerRunning = false;
+                    status.setText("Status: Server fermo.");
+                    JOptionPane.showMessageDialog(serverStart.this, "Server arrestato.");
+                    System.exit(0);
+                } else {
+                    JOptionPane.showMessageDialog(serverStart.this, "Il server è già fermo!");
+                }
             }
         });
     }
@@ -68,6 +74,9 @@ public class serverStart extends JFrame implements ClimateInterface {
         Registry registry = LocateRegistry.createRegistry(1099);
         registry.rebind("ClimateService", stub);
         isServerRunning = true;
+
+        // Aggiorna lo status della JLabel
+        status.setText("Status: Server in esecuzione...");
         System.out.println("Server RMI avviato e registrato.");
     }
 
