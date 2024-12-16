@@ -130,15 +130,31 @@ public class serverStart extends JFrame implements ClimateInterface {
 
     // Implementazione del metodo remoto per la ricerca per coordinate
     @Override
-    public List<Map<String, String>> searchByCoordinates(double latitude, double longitude) throws RemoteException {
+    public List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
-        String query = "SELECT * FROM coordinatemonitoraggio WHERE latitudine = ? AND longitudine = ?";
+
+        String query = "SELECT id_luogo, latitudine, longitudine, nome_ascii, " +
+                "(6371 * acos(cos(radians(?)) * cos(radians(latitudine)) * " +
+                "cos(radians(longitudine) - radians(?)) + sin(radians(?)) * sin(radians(latitudine)))) AS distance " +
+                "FROM coordinatemonitoraggio " +
+                "WHERE (6371 * acos(cos(radians(?)) * cos(radians(latitudine)) * " +
+                "cos(radians(longitudine) - radians(?)) + sin(radians(?)) * sin(radians(latitudine)))) <= ? " +
+                "ORDER BY distance";
 
         try {
             dbConnection();
             PreparedStatement stmt = conn.prepareStatement(query);
+
+            // Parametri per il calcolo della distanza
             stmt.setDouble(1, latitude);
             stmt.setDouble(2, longitude);
+            stmt.setDouble(3, latitude);
+
+            stmt.setDouble(4, latitude);
+            stmt.setDouble(5, longitude);
+            stmt.setDouble(6, latitude);
+            stmt.setDouble(7, radius);
+
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
@@ -147,10 +163,11 @@ public class serverStart extends JFrame implements ClimateInterface {
                 row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
                 row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
                 row.put("nome_ascii", rs.getString("nome_ascii"));
+                row.put("distance", String.format("%.2f", rs.getDouble("distance")));
                 results.add(row);
             }
         } catch (SQLException e) {
-            throw new RemoteException("Errore durante la ricerca per coordinate", e);
+            throw new RemoteException("Errore durante la ricerca per coordinate con raggio", e);
         }
 
         return results;

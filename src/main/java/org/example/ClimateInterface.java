@@ -9,8 +9,8 @@ public interface ClimateInterface extends Remote {
     // Metodo per ottenere tutti i dati
     List<Map<String, String>> getAllData() throws RemoteException;
 
-    // Metodo per la ricerca basata sulle coordinate
-    List<Map<String, String>> searchByCoordinates(double latitude, double longitude) throws RemoteException;
+    // Metodo per cercare con coordinate e raggio
+    List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException;
 
     // Metodo per la ricerca basata sul nome
     List<Map<String, String>> searchByName(String name) throws RemoteException;
