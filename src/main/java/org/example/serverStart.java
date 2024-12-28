@@ -16,9 +16,9 @@ public class serverStart extends JFrame implements ClimateInterface {
     private JPanel serverStartPanel;
     private JButton stopServerButton;
     private JLabel status;
+    private JTextField textfieldIPandPORT;
 
     // Configurazione del database
-    private static final String URL = "jdbc:postgresql://localhost:5432/climatedb";
     private static final String USER = "postgres";
     private static final String PASSWORD = "Asdf1234";
 
@@ -34,12 +34,21 @@ public class serverStart extends JFrame implements ClimateInterface {
         setLocationRelativeTo(null);
         setVisible(true);
 
+        // Imposta il valore predefinito per la textField
+        textfieldIPandPORT.setText("localhost:5432");
+
         // Listener per il pulsante di avvio del server
         startServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (!isServerRunning) {
+                    String ipAndPort = textfieldIPandPORT.getText().trim();
+                    if (ipAndPort.isEmpty() || !ipAndPort.matches("^\\S+:\\d+$")) {
+                        JOptionPane.showMessageDialog(serverStart.this, "Inserire un valore valido nel formato IP:PORT.", "Errore", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
                     try {
+                        System.out.println("Valore inserito nella textfield: " + ipAndPort);
                         startRmiServer();
                         JOptionPane.showMessageDialog(serverStart.this, "Server avviato con successo!");
                     } catch (Exception ex) {
@@ -80,10 +89,17 @@ public class serverStart extends JFrame implements ClimateInterface {
         System.out.println("Server RMI avviato e registrato.");
     }
 
+    // Metodo per ottenere l'URL del database dalla textField
+    private String getDatabaseUrl() {
+        String ipAndPort = textfieldIPandPORT.getText().trim();
+        return "jdbc:postgresql://" + ipAndPort + "/climatedb";
+    }
+
     // Metodo per connettersi al database
     private void dbConnection() throws SQLException {
         if (conn == null || conn.isClosed()) {
-            conn = DriverManager.getConnection(URL, USER, PASSWORD);
+            String url = getDatabaseUrl();
+            conn = DriverManager.getConnection(url, USER, PASSWORD);
             System.out.println("Connessione al database avvenuta con successo.");
         }
     }
@@ -112,6 +128,8 @@ public class serverStart extends JFrame implements ClimateInterface {
 
         return results;
     }
+
+    //DA QUI IN POI METODI DI ClimateInterface
 
     // Implementazione del metodo remoto per ottenere i dati minimali
     @Override
