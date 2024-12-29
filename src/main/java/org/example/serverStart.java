@@ -1,5 +1,6 @@
 package org.example;
 
+import com.formdev.flatlaf.FlatDarkLaf;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -25,7 +26,6 @@ public class serverStart extends JFrame implements ClimateInterface {
     private Connection conn;
     private boolean isServerRunning = false;
 
-    // Costruttore
     public serverStart() {
         setContentPane(serverStartPanel);
         setTitle("Server Climate Monitoring");
@@ -34,10 +34,8 @@ public class serverStart extends JFrame implements ClimateInterface {
         setLocationRelativeTo(null);
         setVisible(true);
 
-        // Imposta il valore predefinito per la textField
         textfieldIPandPORT.setText("localhost:5432");
 
-        // Listener per il pulsante di avvio del server
         startServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -61,7 +59,6 @@ public class serverStart extends JFrame implements ClimateInterface {
             }
         });
 
-        // Listener per il pulsante di arresto del server
         stopServerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -77,49 +74,41 @@ public class serverStart extends JFrame implements ClimateInterface {
         });
     }
 
-    // Metodo per avviare il server RMI
     private void startRmiServer() throws RemoteException {
         ClimateInterface stub = (ClimateInterface) UnicastRemoteObject.exportObject(this, 0);
         Registry registry = LocateRegistry.createRegistry(1099);
         registry.rebind("ClimateService", stub);
         isServerRunning = true;
-
-        // Aggiorna lo status della JLabel
         status.setText("Status: Server in esecuzione...");
         System.out.println("Server RMI avviato e registrato.");
     }
 
-    // Metodo per ottenere l'URL del database dalla textField
     private String getDatabaseUrl() {
         String ipAndPort = textfieldIPandPORT.getText().trim();
         return "jdbc:postgresql://" + ipAndPort + "/climatedb";
     }
 
-    // Metodo per connettersi al database
-    private void dbConnection() throws SQLException {
+    private Connection dbConnection() throws SQLException {
         if (conn == null || conn.isClosed()) {
             String url = getDatabaseUrl();
             conn = DriverManager.getConnection(url, USER, PASSWORD);
             System.out.println("Connessione al database avvenuta con successo.");
         }
+        return conn;
     }
 
-    // Implementazione del metodo remoto per ottenere tutti i dati
     @Override
     public List<Map<String, String>> getAllData() throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
         String query = "SELECT * FROM coordinatemonitoraggio";
 
-        try {
-            dbConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-
+        try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 Map<String, String> row = new HashMap<>();
                 row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
                 row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
                 row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
+                row.put("nome_ascii", rs.getString("nome_ascii"));
                 results.add(row);
             }
         } catch (SQLException e) {
@@ -129,19 +118,12 @@ public class serverStart extends JFrame implements ClimateInterface {
         return results;
     }
 
-    //DA QUI IN POI METODI DI ClimateInterface
-
-    // Implementazione del metodo remoto per ottenere i dati minimali
     @Override
     public List<Map<String, String>> getMinimalLocationData() throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
         String query = "SELECT id_luogo, nome_ascii FROM coordinatemonitoraggio ORDER BY nome_ascii ASC";
 
-        try {
-            dbConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-
+        try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 Map<String, String> row = new HashMap<>();
                 row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
@@ -155,7 +137,6 @@ public class serverStart extends JFrame implements ClimateInterface {
         return results;
     }
 
-    // Implementazione del metodo remoto per la ricerca per coordinate
     @Override
     public List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
@@ -168,15 +149,11 @@ public class serverStart extends JFrame implements ClimateInterface {
                 "cos(radians(longitudine) - radians(?)) + sin(radians(?)) * sin(radians(latitudine)))) <= ? " +
                 "ORDER BY distance";
 
-        try {
-            dbConnection();
-            PreparedStatement stmt = conn.prepareStatement(query);
+        try (PreparedStatement stmt = dbConnection().prepareStatement(query)) {
 
-            // Parametri per il calcolo della distanza
             stmt.setDouble(1, latitude);
             stmt.setDouble(2, longitude);
             stmt.setDouble(3, latitude);
-
             stmt.setDouble(4, latitude);
             stmt.setDouble(5, longitude);
             stmt.setDouble(6, latitude);
@@ -200,15 +177,12 @@ public class serverStart extends JFrame implements ClimateInterface {
         return results;
     }
 
-    // Implementazione del metodo remoto per la ricerca per nome
     @Override
     public List<Map<String, String>> searchByName(String name) throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
         String query = "SELECT * FROM coordinatemonitoraggio WHERE nome_ascii ILIKE ?";
 
-        try {
-            dbConnection();
-            PreparedStatement stmt = conn.prepareStatement(query);
+        try (PreparedStatement stmt = dbConnection().prepareStatement(query)) {
             stmt.setString(1, "%" + name + "%");
             ResultSet rs = stmt.executeQuery();
 
@@ -230,17 +204,14 @@ public class serverStart extends JFrame implements ClimateInterface {
     @Override
     public boolean validateCredentials(String userId, String password) throws RemoteException {
         String query = "SELECT * FROM operatoriregistrati WHERE id_operatore = ? AND password = ?";
-        try {
-            dbConnection();
-            PreparedStatement stmt = conn.prepareStatement(query);
+        try (PreparedStatement stmt = dbConnection().prepareStatement(query)) {
 
-            // Converte userId in Integer
             int idOperatore = Integer.parseInt(userId.trim());
-            stmt.setInt(1, idOperatore); // Primo parametro come INTEGER
-            stmt.setString(2, password); // Secondo parametro come STRING
+            stmt.setInt(1, idOperatore);
+            stmt.setString(2, password);
 
             ResultSet rs = stmt.executeQuery();
-            return rs.next(); // Restituisce true se le credenziali esistono
+            return rs.next();
         } catch (NumberFormatException e) {
             throw new RemoteException("L'ID Operatore deve essere un numero valido.", e);
         } catch (SQLException e) {
@@ -249,6 +220,22 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(serverStart::new);
+        try {
+            // Imposta il tema FlatDarkLaf
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+        } catch (UnsupportedLookAndFeelException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Errore durante l'impostazione del tema: " + e.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+        }
+
+        // Esegui la GUI
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new serverStart(); // Avvia la finestra serverStart
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("Errore durante l'avvio dell'applicazione: " + e.getMessage());
+            }
+        });
     }
 }

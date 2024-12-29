@@ -14,14 +14,21 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!-- Dipendenza per PostgreSQL JDBC -->
+    <!-- Dipendenze del progetto -->
     <dependencies>
+        <!-- Dipendenza per PostgreSQL JDBC -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.3.3</version>
         </dependency>
 
+        <!-- Dipendenza per FlatLaf -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.0</version>
+        </dependency>
     </dependencies>
 
 </project>
