@@ -140,7 +140,10 @@ public class serverStart extends JFrame implements ClimateInterface {
     @Override
     public List<Map<String, String>> getMonitoringAreas() throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
-        String query = "SELECT id_luogo, nome_ascii FROM coordinatemonitoraggio ORDER BY nome_ascii ASC";
+        String query = "SELECT id_luogo, nome_ascii " +
+                "FROM coordinatemonitoraggio " +
+                "WHERE id_luogo NOT IN (SELECT id_luogo FROM centrimonitoraggio) " +
+                "ORDER BY nome_ascii ASC";
 
         try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
@@ -155,6 +158,50 @@ public class serverStart extends JFrame implements ClimateInterface {
         }
 
         return results;
+    }
+
+    @Override
+    public boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds) throws RemoteException {
+        String insertCenterQuery = "INSERT INTO centrimonitoraggio (nome, indirizzo, id_luogo) VALUES (?, ?, ?)";
+
+        try (Connection connection = dbConnection()) {
+            connection.setAutoCommit(false); // Inizio transazione
+
+            // Inserisce un centro per ogni area selezionata
+            try (PreparedStatement centerStmt = connection.prepareStatement(insertCenterQuery)) {
+                for (int areaId : areaIds) {
+                    centerStmt.setString(1, name);
+                    centerStmt.setString(2, address);
+                    centerStmt.setInt(3, areaId);
+                    centerStmt.executeUpdate();
+                }
+            }
+
+            connection.commit(); // Concludi la transazione
+            return true;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RemoteException("Errore durante la registrazione del centro di monitoraggio", e);
+        }
+    }
+
+    @Override
+    public boolean checkDuplicateMonitoringCenter(String name, String address) throws RemoteException {
+        String query = "SELECT COUNT(*) FROM centrimonitoraggio WHERE nome = ? OR indirizzo = ?";
+        try (Connection connection = dbConnection(); PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, name);
+            stmt.setString(2, address);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0; // Restituisce true se esiste un duplicato
+            }
+        } catch (SQLException e) {
+            System.err.println("Errore SQL: " + e.getMessage());
+            e.printStackTrace(); // Log dettagliato sul server
+            throw new RemoteException("Errore generico durante il controllo dei duplicati");
+        }
+        return false;
     }
 
     @Override
