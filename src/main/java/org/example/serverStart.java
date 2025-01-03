@@ -100,14 +100,12 @@ public class serverStart extends JFrame implements ClimateInterface {
     @Override
     public List<Map<String, String>> getAllData() throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
-        String query = "SELECT * FROM coordinatemonitoraggio";
+        String query = "SELECT id_luogo, nome_ascii FROM coordinatemonitoraggio ORDER BY nome_ascii ASC";
 
         try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 Map<String, String> row = new HashMap<>();
                 row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
-                row.put("latitudine", String.valueOf(rs.getDouble("latitudine")));
-                row.put("longitudine", String.valueOf(rs.getDouble("longitudine")));
                 row.put("nome_ascii", rs.getString("nome_ascii"));
                 results.add(row);
             }
@@ -138,42 +136,32 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     @Override
-    public List<Map<String, String>> getMonitoringAreas() throws RemoteException {
-        List<Map<String, String>> results = new ArrayList<>();
-        String query = "SELECT id_luogo, nome_ascii " +
-                "FROM coordinatemonitoraggio " +
-                "WHERE id_luogo NOT IN (SELECT id_luogo FROM centrimonitoraggio) " +
-                "ORDER BY nome_ascii ASC";
-
-        try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                Map<String, String> row = new HashMap<>();
-                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
-                row.put("nome_ascii", rs.getString("nome_ascii"));
-                results.add(row);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RemoteException("Errore durante il recupero delle aree di monitoraggio", e);
-        }
-
-        return results;
-    }
-
-    @Override
     public boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds) throws RemoteException {
-        String insertCenterQuery = "INSERT INTO centrimonitoraggio (nome, indirizzo, id_luogo) VALUES (?, ?, ?)";
+        String insertCenterQuery = "INSERT INTO centrimonitoraggio (nome, indirizzo) VALUES (?, ?) RETURNING id_centromonitoraggio";
+        String insertAssociationQuery = "INSERT INTO centroarea (id_centromonitoraggio, id_luogo) VALUES (?, ?)";
 
         try (Connection connection = dbConnection()) {
-            connection.setAutoCommit(false); // Inizio transazione
+            connection.setAutoCommit(false); // Avvia una transazione
 
-            // Inserisce un centro per ogni area selezionata
+            int centerId;
             try (PreparedStatement centerStmt = connection.prepareStatement(insertCenterQuery)) {
+                centerStmt.setString(1, name);
+                centerStmt.setString(2, address);
+                ResultSet rs = centerStmt.executeQuery();
+                if (rs.next()) {
+                    centerId = rs.getInt("id_centromonitoraggio");
+                } else {
+                    connection.rollback();
+                    throw new SQLException("Errore nel recuperare l'ID del centro di monitoraggio appena inserito.");
+                }
+            }
+
+            // Inserisce la relazione tra il centro e le aree
+            try (PreparedStatement assocStmt = connection.prepareStatement(insertAssociationQuery)) {
                 for (int areaId : areaIds) {
-                    centerStmt.setString(1, name);
-                    centerStmt.setString(2, address);
-                    centerStmt.setInt(3, areaId);
-                    centerStmt.executeUpdate();
+                    assocStmt.setInt(1, centerId);
+                    assocStmt.setInt(2, areaId);
+                    assocStmt.executeUpdate();
                 }
             }
 
