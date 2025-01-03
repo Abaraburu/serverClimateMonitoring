@@ -20,4 +20,7 @@ public interface ClimateInterface extends Remote {
 
     // Metodo per validare credenziali
     boolean validateCredentials(String userId, String password) throws RemoteException;
+
+    // Metodo registrazione centro monitoraggio scrollpane
+    List<Map<String, String>> getMonitoringAreas() throws RemoteException;
 }

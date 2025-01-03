@@ -138,6 +138,26 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     @Override
+    public List<Map<String, String>> getMonitoringAreas() throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT id_luogo, nome_ascii FROM coordinatemonitoraggio ORDER BY nome_ascii ASC";
+
+        try (Connection connection = dbConnection(); Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                row.put("nome_ascii", rs.getString("nome_ascii"));
+                results.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RemoteException("Errore durante il recupero delle aree di monitoraggio", e);
+        }
+
+        return results;
+    }
+
+    @Override
     public List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
 
