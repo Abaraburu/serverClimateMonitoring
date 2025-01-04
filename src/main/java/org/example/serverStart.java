@@ -372,6 +372,146 @@ public class serverStart extends JFrame implements ClimateInterface {
         }
     }
 
+    @Override
+    public List<Map<String, String>> getLocationsForUser(String username) throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT coordinatemonitoraggio.id_luogo, coordinatemonitoraggio.nome_ascii " +
+                "FROM coordinatemonitoraggio " +
+                "INNER JOIN centroarea ON coordinatemonitoraggio.id_luogo = centroarea.id_luogo " +
+                "INNER JOIN operatoriregistrati ON centroarea.id_centromonitoraggio = operatoriregistrati.id_centromonitoraggio " +
+                "WHERE operatoriregistrati.username = ? " +
+                "ORDER BY coordinatemonitoraggio.nome_ascii ASC";
+
+        System.out.println("**DEBUG** Esecuzione della query di getLocationsForUser");
+        try (Connection connection = dbConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> row = new HashMap<>();
+                    row.put("id_luogo", String.valueOf(rs.getInt("id_luogo")));
+                    row.put("nome_ascii", rs.getString("nome_ascii"));
+                    results.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il recupero delle aree per l'utente", e);
+        }
+
+        return results;
+    }
+
+    @Override
+    public boolean addClimaticParameters(String username, String nomeArea, String data, String ora, int vento,
+                                         int umidita, int pressione, int temperatura, int precipitazioni,
+                                         int altitudine, int massa, String commentoVento, String commentoUmidita,
+                                         String commentoPressione, String commentoTemperatura, String commentoPrecipitazioni,
+                                         String commentoAltitudine, String commentoMassa) throws RemoteException {
+        String query = "INSERT INTO parametriclimatici " +
+                "(id_luogo, id_centromonitoraggio, data_di_rilevazione, ora, vento, umidita, pressione, temperatura, precipitazioni, altitudineghiacciai, massaghiacciai, " +
+                "vento_nota, umidita_nota, pressione_nota, temperatura_nota, precipitazioni_nota, altitudineghiacciai_nota, massaghiacciai_nota) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = dbConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+
+            System.out.println("**DEBUG** Preparazione della query");
+
+            // Recupera l'id del centro di monitoraggio associato all'operatore
+            String centroQuery = "SELECT id_centromonitoraggio FROM operatoriregistrati WHERE username = ?";
+            int idCentroMonitoraggio;
+
+            try (PreparedStatement centroStmt = connection.prepareStatement(centroQuery)) {
+                centroStmt.setString(1, username);
+                ResultSet rs = centroStmt.executeQuery();
+                if (rs.next()) {
+                    idCentroMonitoraggio = rs.getInt("id_centromonitoraggio");
+                    System.out.println("ID Centro Monitoraggio: " + idCentroMonitoraggio);
+                } else {
+                    throw new RemoteException("Centro di monitoraggio non trovato per l'utente: " + username);
+                }
+            }
+
+            // Recupera l'id del luogo dall'area
+            String luogoQuery = "SELECT id_luogo FROM coordinatemonitoraggio WHERE nome_ascii = ?";
+            int idLuogo;
+
+            try (PreparedStatement luogoStmt = connection.prepareStatement(luogoQuery)) {
+                luogoStmt.setString(1, nomeArea);
+                ResultSet rs = luogoStmt.executeQuery();
+                if (rs.next()) {
+                    idLuogo = rs.getInt("id_luogo");
+                    System.out.println("ID Luogo: " + idLuogo);
+                } else {
+                    throw new RemoteException("Luogo non trovato per l'area: " + nomeArea);
+                }
+            }
+
+            // Conversione della data e dell'ora
+            String[] dateParts = data.split("/");
+            String formattedDate = String.format("%s-%s-%s", dateParts[2], dateParts[1], dateParts[0]);
+            String formattedTime = ora + ":00";
+            System.out.println("Formatted Date: " + formattedDate);
+            System.out.println("Formatted Time: " + formattedTime);
+
+            // Assegna tutti i parametri al PreparedStatement
+            stmt.setInt(1, idLuogo);
+            stmt.setInt(2, idCentroMonitoraggio);
+            stmt.setDate(3, java.sql.Date.valueOf(formattedDate));
+            stmt.setTime(4, java.sql.Time.valueOf(formattedTime));
+            stmt.setInt(5, vento);
+            stmt.setInt(6, umidita);
+            stmt.setInt(7, pressione);
+            stmt.setInt(8, temperatura);
+            stmt.setInt(9, precipitazioni);
+            stmt.setInt(10, altitudine);
+            stmt.setInt(11, massa);
+            stmt.setString(12, commentoVento != null ? commentoVento : ""); // Default: stringa vuota
+            stmt.setString(13, commentoUmidita != null ? commentoUmidita : "");
+            stmt.setString(14, commentoPressione != null ? commentoPressione : "");
+            stmt.setString(15, commentoTemperatura != null ? commentoTemperatura : "");
+            stmt.setString(16, commentoPrecipitazioni != null ? commentoPrecipitazioni : "");
+            stmt.setString(17, commentoAltitudine != null ? commentoAltitudine : "");
+            stmt.setString(18, commentoMassa != null ? commentoMassa : "");
+
+            System.out.println("**DEBUG** Esecuzione della query di insert");
+            int rowsInserted = stmt.executeUpdate();
+            System.out.println("**DEBUG** Rows inserted: " + rowsInserted);
+            return rowsInserted > 0;
+        } catch (SQLException e) {
+            System.out.println("**DEBUG** SQLException: " + e.getMessage());
+            e.printStackTrace();
+            throw new RemoteException("Errore durante l'inserimento dei parametri climatici", e);
+        } catch (IllegalArgumentException e) {
+            System.out.println("**DEBUG** IllegalArgumentException: " + e.getMessage());
+            throw new RemoteException("Errore nel formato della data o dell'ora", e);
+        }
+    }
+
+    @Override
+    public boolean checkExistingClimaticParameter(String nomeArea, String data, String ora) throws RemoteException {
+        String query = "SELECT COUNT(*) FROM parametriclimatici WHERE id_luogo = (SELECT id_luogo FROM coordinatemonitoraggio WHERE nome_ascii = ?) AND data_di_rilevazione = ? AND ora = ?";
+        try (Connection connection = dbConnection(); PreparedStatement stmt = connection.prepareStatement(query)) {
+            // Converti la data dal formato dd/MM/yyyy a yyyy-MM-dd
+            String[] dateParts = data.split("/");
+            String formattedDate = String.format("%s-%s-%s", dateParts[2], dateParts[1], dateParts[0]); // yyyy-MM-dd
+
+            stmt.setString(1, nomeArea);
+            stmt.setDate(2, java.sql.Date.valueOf(formattedDate)); // Usa il formato corretto
+            stmt.setTime(3, java.sql.Time.valueOf(ora + ":00")); // Aggiungi ":00" per il formato SQL
+
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0; // True se esiste già
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la verifica del parametro climatico esistente.", e);
+        } catch (ArrayIndexOutOfBoundsException | IllegalArgumentException e) {
+            throw new RemoteException("Errore nel formato della data o dell'ora fornita.", e);
+        }
+        return false;
+    }
+
     public static void main(String[] args) {
         try {
             // Imposta il tema FlatDarkLaf

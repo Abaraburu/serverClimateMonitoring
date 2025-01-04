@@ -35,4 +35,13 @@ public interface ClimateInterface extends Remote {
 
     // Metodo per registrare un'area di interesse
     boolean registerArea(String nome, String nomeASCII, String stato, String statoCodice, double latitudine, double longitudine) throws RemoteException;
+
+    // Metodo per sapere l'username
+    List<Map<String, String>> getLocationsForUser(String username) throws RemoteException;
+
+    // Metodo per registrare i parametri climatici
+    boolean addClimaticParameters(String username, String nomeArea, String data, String ora, int vento, int umidita, int pressione, int temperatura, int precipitazioni, int altitudine, int massa, String commentoVento, String commentoUmidita, String commentoPressione, String commentoTemperatura, String commentoPrecipitazioni, String commentoAltitudine, String commentoMassa) throws RemoteException;
+
+    // Metodo per controllare non ci siano già parametri climatici per lo stesso luogo con stesso giorno e ora
+    boolean checkExistingClimaticParameter(String nomeArea, String data, String ora) throws RemoteException;
 }
