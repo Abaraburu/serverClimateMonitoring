@@ -193,6 +193,73 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     @Override
+    public List<String> getAllMonitoringCenters() throws RemoteException {
+        List<String> centers = new ArrayList<>();
+        String query = "SELECT nome FROM centrimonitoraggio";
+
+        try (Connection connection = dbConnection();
+             Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                centers.add(rs.getString("nome"));
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il recupero dei centri di monitoraggio", e);
+        }
+        return centers;
+    }
+
+    @Override
+    public boolean registerOperator(String nome, String cognome, String codiceFiscale, String email, String username, String password, String centroMonitoraggio) throws RemoteException {
+        String checkQuery = "SELECT COUNT(*) FROM operatoriregistrati WHERE codice_fiscale = ? OR email = ? OR username = ?";
+        String getIdQuery = "SELECT id_centromonitoraggio FROM centrimonitoraggio WHERE nome = ?";
+        String insertQuery = "INSERT INTO operatoriregistrati (nome, cognome, codice_fiscale, email, username, password, id_centromonitoraggio) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = dbConnection()) {
+            // Controllo duplicati
+            try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, codiceFiscale);
+                checkStmt.setString(2, email);
+                checkStmt.setString(3, username);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next() && rs.getInt(1) > 0) {
+                    throw new RemoteException("Dati duplicati trovati per codice fiscale, email o username.");
+                }
+            }
+
+            // Ottenere l'ID del centro monitoraggio
+            int idCentroMonitoraggio;
+            try (PreparedStatement getIdStmt = connection.prepareStatement(getIdQuery)) {
+                getIdStmt.setString(1, centroMonitoraggio);
+                ResultSet rs = getIdStmt.executeQuery();
+                if (rs.next()) {
+                    idCentroMonitoraggio = rs.getInt("id_centromonitoraggio");
+                } else {
+                    throw new RemoteException("Centro monitoraggio non trovato: " + centroMonitoraggio);
+                }
+            }
+
+            // Inserimento dell'operatore
+            try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+                insertStmt.setString(1, nome);
+                insertStmt.setString(2, cognome);
+                insertStmt.setString(3, codiceFiscale);
+                insertStmt.setString(4, email);
+                insertStmt.setString(5, username);
+                insertStmt.setString(6, password);
+                insertStmt.setInt(7, idCentroMonitoraggio);
+
+                int rowsInserted = insertStmt.executeUpdate();
+                return rowsInserted > 0;
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la registrazione dell'operatore", e);
+        }
+    }
+
+    @Override
     public List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException {
         List<Map<String, String>> results = new ArrayList<>();
 
@@ -257,18 +324,14 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     @Override
-    public boolean validateCredentials(String userId, String password) throws RemoteException {
-        String query = "SELECT * FROM operatoriregistrati WHERE id_operatore = ? AND password = ?";
+    public boolean validateCredentials(String username, String password) throws RemoteException {
+        String query = "SELECT * FROM operatoriregistrati WHERE username = ? AND password = ?";
         try (PreparedStatement stmt = dbConnection().prepareStatement(query)) {
-
-            int idOperatore = Integer.parseInt(userId.trim());
-            stmt.setInt(1, idOperatore);
+            stmt.setString(1, username);
             stmt.setString(2, password);
 
             ResultSet rs = stmt.executeQuery();
-            return rs.next();
-        } catch (NumberFormatException e) {
-            throw new RemoteException("L'ID Operatore deve essere un numero valido.", e);
+            return rs.next(); // Ritorna true se le credenziali sono valide
         } catch (SQLException e) {
             throw new RemoteException("Errore durante la validazione delle credenziali.", e);
         }

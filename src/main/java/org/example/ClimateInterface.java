@@ -26,4 +26,10 @@ public interface ClimateInterface extends Remote {
 
     // Metodo per il controllo nell aggiunta del centro di monitoraggio
     boolean checkDuplicateMonitoringCenter(String name, String address) throws RemoteException;
+
+    // Metodo per ottenere tutti i centri di monitoraggio
+    List<String> getAllMonitoringCenters() throws RemoteException;
+
+    // Metodo per registrare un operatore con controlli su duplicati
+    boolean registerOperator(String nome, String cognome, String codiceFiscale, String email, String username, String password, String centroMonitoraggio) throws RemoteException;
 }
