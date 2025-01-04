@@ -337,6 +337,41 @@ public class serverStart extends JFrame implements ClimateInterface {
         }
     }
 
+    @Override
+    public boolean registerArea(String nome, String nomeASCII, String stato, String statoCodice, double latitudine, double longitudine) throws RemoteException {
+        String checkQuery = "SELECT COUNT(*) FROM coordinatemonitoraggio WHERE nome = ? AND latitudine = ? AND longitudine = ?";
+        String insertQuery = "INSERT INTO coordinatemonitoraggio (nome, nome_ascii, stato, stato_code, latitudine, longitudine) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = dbConnection()) {
+            // Controllo duplicati
+            try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, nome);
+                checkStmt.setDouble(2, latitudine);
+                checkStmt.setDouble(3, longitudine);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next() && rs.getInt(1) > 0) {
+                    throw new RemoteException("Esiste già un'area con lo stesso nome, latitudine e longitudine.");
+                }
+            }
+
+            // Inserimento dell'area di interesse
+            try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+                insertStmt.setString(1, nome);
+                insertStmt.setString(2, nomeASCII);
+                insertStmt.setString(3, stato);
+                insertStmt.setString(4, statoCodice);
+                insertStmt.setDouble(5, latitudine);
+                insertStmt.setDouble(6, longitudine);
+
+                int rowsInserted = insertStmt.executeUpdate();
+                return rowsInserted > 0;
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante la registrazione dell'area di interesse", e);
+        }
+    }
+
     public static void main(String[] args) {
         try {
             // Imposta il tema FlatDarkLaf
