@@ -512,6 +512,149 @@ public class serverStart extends JFrame implements ClimateInterface {
         return false;
     }
 
+    @Override
+    public List<Map<String, String>> getClimaticData(String nomeAreaGeografica) throws RemoteException {
+        List<Map<String, String>> risultati = new ArrayList<>();
+        String query = "SELECT parametriclimatici.data_di_rilevazione, parametriclimatici.ora, " +
+                "       parametriclimatici.vento, parametriclimatici.umidita, " +
+                "       parametriclimatici.pressione, parametriclimatici.temperatura, " +
+                "       parametriclimatici.precipitazioni, parametriclimatici.altitudineghiacciai, " +
+                "       parametriclimatici.massaghiacciai " +
+                "FROM parametriclimatici " +
+                "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
+                "WHERE coordinatemonitoraggio.nome_ascii = ? " +
+                "ORDER BY parametriclimatici.data_di_rilevazione DESC, parametriclimatici.ora DESC";
+
+        try (Connection connection = dbConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, nomeAreaGeografica);
+            ResultSet resultSet = statement.executeQuery();
+
+            while (resultSet.next()) {
+                Map<String, String> riga = new LinkedHashMap<>(); // Usa LinkedHashMap per preservare l'ordine
+                riga.put("data_di_rilevazione", resultSet.getDate("data_di_rilevazione").toString());
+                riga.put("ora", resultSet.getTime("ora").toString());
+                riga.put("vento", String.valueOf(resultSet.getInt("vento")));
+                riga.put("umidita", String.valueOf(resultSet.getInt("umidita")));
+                riga.put("pressione", String.valueOf(resultSet.getInt("pressione")));
+                riga.put("temperatura", String.valueOf(resultSet.getInt("temperatura")));
+                riga.put("precipitazioni", String.valueOf(resultSet.getInt("precipitazioni")));
+                riga.put("altitudineghiacciai", String.valueOf(resultSet.getInt("altitudineghiacciai")));
+                riga.put("massaghiacciai", String.valueOf(resultSet.getInt("massaghiacciai")));
+
+                System.out.println("Riga recuperata: " + riga); // Debug
+                risultati.add(riga);
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il recupero dei dati climatici", e);
+        }
+
+        return risultati;
+    }
+
+    @Override
+    public Map<String, Double> getAverages(String nomeAreaGeografica) throws RemoteException {
+        Map<String, Double> medie = new HashMap<>();
+        String query = "SELECT AVG(parametriclimatici.vento) AS vento_media, " +
+                "       AVG(parametriclimatici.umidita) AS umidita_media, " +
+                "       AVG(parametriclimatici.pressione) AS pressione_media," +
+                "       AVG(parametriclimatici.temperatura) AS temperatura_media, " +
+                "       AVG(parametriclimatici.precipitazioni) AS precipitazioni_media," +
+                "       AVG(parametriclimatici.altitudineghiacciai) AS altitudine_media, " +
+                "       AVG(parametriclimatici.massaghiacciai) AS massa_media " +
+                "FROM parametriclimatici " +
+                "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
+                "WHERE coordinatemonitoraggio.nome_ascii = ?";
+
+        try (Connection connection = dbConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, nomeAreaGeografica);
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                medie.put("vento", resultSet.getDouble("vento_media"));
+                medie.put("umidita", resultSet.getDouble("umidita_media"));
+                medie.put("pressione", resultSet.getDouble("pressione_media"));
+                medie.put("temperatura", resultSet.getDouble("temperatura_media"));
+                medie.put("precipitazioni", resultSet.getDouble("precipitazioni_media"));
+                medie.put("altitudine", resultSet.getDouble("altitudine_media"));
+                medie.put("massa", resultSet.getDouble("massa_media"));
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il calcolo delle medie climatiche", e);
+        }
+
+        return medie;
+    }
+
+    @Override
+    public Map<String, Integer> getModes(String nomeAreaGeografica) throws RemoteException {
+        Map<String, Integer> mode = new HashMap<>();
+        String[] parametri = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
+
+        try (Connection connection = dbConnection()) {
+            for (String parametro : parametri) {
+                String query = "SELECT parametriclimatici." + parametro + " AS valore_piu_frequente, " +
+                        "COUNT(parametriclimatici." + parametro + ") AS numero_occorrenze " +
+                        "FROM parametriclimatici " +
+                        "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
+                        "WHERE coordinatemonitoraggio.nome_ascii = ? AND parametriclimatici." + parametro + " IS NOT NULL " +
+                        "GROUP BY parametriclimatici." + parametro + " " +
+                        "ORDER BY numero_occorrenze DESC, parametriclimatici." + parametro + " ASC " +
+                        "LIMIT 1";
+
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, nomeAreaGeografica);
+                    ResultSet resultSet = statement.executeQuery();
+
+                    if (resultSet.next()) {
+                        int valore = resultSet.getInt("valore_piu_frequente");
+                        System.out.println("Parametro: " + parametro + ", Moda: " + valore);
+                        mode.put(parametro, valore);
+                    } else {
+                        System.out.println("Nessuna moda trovata per " + parametro);
+                        mode.put(parametro, 0); // Default
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il calcolo delle mode climatiche", e);
+        }
+
+        return mode;
+    }
+
+    @Override
+    public Map<String, Double> getMedians(String nomeAreaGeografica) throws RemoteException {
+        Map<String, Double> mediane = new HashMap<>();
+        String[] parametri = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
+
+        try (Connection connection = dbConnection()) {
+            for (String parametro : parametri) {
+                String query = "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY parametriclimatici." + parametro + ") AS mediana " +
+                        "FROM parametriclimatici " +
+                        "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
+                        "WHERE coordinatemonitoraggio.nome_ascii = ?";
+
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, nomeAreaGeografica);
+                    ResultSet resultSet = statement.executeQuery();
+
+                    if (resultSet.next()) {
+                        double mediana = resultSet.getDouble("mediana");
+                        System.out.println("Parametro: " + parametro + ", Mediana: " + mediana);
+                        mediane.put(parametro, mediana);
+                    } else {
+                        System.out.println("Nessuna mediana trovata per " + parametro);
+                        mediane.put(parametro, 0.0); // Default
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante il calcolo delle mediane climatiche", e);
+        }
+
+        return mediane;
+    }
+
     public static void main(String[] args) {
         try {
             // Imposta il tema FlatDarkLaf

@@ -44,4 +44,16 @@ public interface ClimateInterface extends Remote {
 
     // Metodo per controllare non ci siano già parametri climatici per lo stesso luogo con stesso giorno e ora
     boolean checkExistingClimaticParameter(String nomeArea, String data, String ora) throws RemoteException;
+
+    // Metodo per ricevere i dati dell'area
+    List<Map<String, String>> getClimaticData(String areaName) throws RemoteException;
+
+    // Metodo per ricevere la media
+    Map<String, Double> getAverages(String areaName) throws RemoteException;
+
+    // Metodo per ricevere la moda
+    Map<String, Integer> getModes(String areaName) throws RemoteException;
+
+    // Metodo per ricevere la mediana
+    Map<String, Double> getMedians(String areaName) throws RemoteException;
 }
