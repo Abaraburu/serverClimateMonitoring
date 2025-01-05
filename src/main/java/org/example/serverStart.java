@@ -513,146 +513,150 @@ public class serverStart extends JFrame implements ClimateInterface {
     }
 
     @Override
-    public List<Map<String, String>> getClimaticData(String nomeAreaGeografica) throws RemoteException {
-        List<Map<String, String>> risultati = new ArrayList<>();
-        String query = "SELECT parametriclimatici.data_di_rilevazione, parametriclimatici.ora, " +
-                "       parametriclimatici.vento, parametriclimatici.umidita, " +
-                "       parametriclimatici.pressione, parametriclimatici.temperatura, " +
-                "       parametriclimatici.precipitazioni, parametriclimatici.altitudineghiacciai, " +
-                "       parametriclimatici.massaghiacciai " +
-                "FROM parametriclimatici " +
-                "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
-                "WHERE coordinatemonitoraggio.nome_ascii = ? " +
-                "ORDER BY parametriclimatici.data_di_rilevazione DESC, parametriclimatici.ora DESC";
+    public List<Map<String, String>> getClimaticDataById(int areaId) throws RemoteException {
+        List<Map<String, String>> results = new ArrayList<>();
+        String query = "SELECT id_parametro, data_di_rilevazione, ora, vento, umidita, pressione, " +
+                "temperatura, precipitazioni, altitudineghiacciai, massaghiacciai " +
+                "FROM parametriclimatici WHERE id_luogo = ? ORDER BY data_di_rilevazione DESC, ora DESC";
 
-        try (Connection connection = dbConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, nomeAreaGeografica);
-            ResultSet resultSet = statement.executeQuery();
+        try (Connection connection = dbConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
 
-            while (resultSet.next()) {
-                Map<String, String> riga = new LinkedHashMap<>(); // Usa LinkedHashMap per preservare l'ordine
-                riga.put("data_di_rilevazione", resultSet.getDate("data_di_rilevazione").toString());
-                riga.put("ora", resultSet.getTime("ora").toString());
-                riga.put("vento", String.valueOf(resultSet.getInt("vento")));
-                riga.put("umidita", String.valueOf(resultSet.getInt("umidita")));
-                riga.put("pressione", String.valueOf(resultSet.getInt("pressione")));
-                riga.put("temperatura", String.valueOf(resultSet.getInt("temperatura")));
-                riga.put("precipitazioni", String.valueOf(resultSet.getInt("precipitazioni")));
-                riga.put("altitudineghiacciai", String.valueOf(resultSet.getInt("altitudineghiacciai")));
-                riga.put("massaghiacciai", String.valueOf(resultSet.getInt("massaghiacciai")));
+            stmt.setInt(1, areaId);
+            ResultSet rs = stmt.executeQuery();
 
-                System.out.println("Riga recuperata: " + riga); // Debug
-                risultati.add(riga);
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("id_parametro", String.valueOf(rs.getInt("id_parametro"))); // ID Parametro
+                row.put("data_di_rilevazione", rs.getDate("data_di_rilevazione").toString());
+                row.put("ora", rs.getTime("ora").toString());
+                row.put("vento", String.valueOf(rs.getInt("vento")));
+                row.put("umidita", String.valueOf(rs.getInt("umidita")));
+                row.put("pressione", String.valueOf(rs.getInt("pressione")));
+                row.put("temperatura", String.valueOf(rs.getInt("temperatura")));
+                row.put("precipitazioni", String.valueOf(rs.getInt("precipitazioni")));
+                row.put("altitudineghiacciai", String.valueOf(rs.getInt("altitudineghiacciai")));
+                row.put("massaghiacciai", String.valueOf(rs.getInt("massaghiacciai")));
+
+                System.out.println("DEBUG (Server): ID Parametro = " + row.get("id_parametro"));
+                results.add(row);
             }
         } catch (SQLException e) {
             throw new RemoteException("Errore durante il recupero dei dati climatici", e);
         }
 
-        return risultati;
+        return results;
     }
 
     @Override
-    public Map<String, Double> getAverages(String nomeAreaGeografica) throws RemoteException {
-        Map<String, Double> medie = new HashMap<>();
-        String query = "SELECT AVG(parametriclimatici.vento) AS vento_media, " +
-                "       AVG(parametriclimatici.umidita) AS umidita_media, " +
-                "       AVG(parametriclimatici.pressione) AS pressione_media," +
-                "       AVG(parametriclimatici.temperatura) AS temperatura_media, " +
-                "       AVG(parametriclimatici.precipitazioni) AS precipitazioni_media," +
-                "       AVG(parametriclimatici.altitudineghiacciai) AS altitudine_media, " +
-                "       AVG(parametriclimatici.massaghiacciai) AS massa_media " +
-                "FROM parametriclimatici " +
-                "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
-                "WHERE coordinatemonitoraggio.nome_ascii = ?";
+    public Map<String, Double> getAveragesById(int areaId) throws RemoteException {
+        Map<String, Double> averages = new HashMap<>();
+        String query = "SELECT AVG(vento) AS vento_media, AVG(umidita) AS umidita_media, " +
+                "AVG(pressione) AS pressione_media, AVG(temperatura) AS temperatura_media, " +
+                "AVG(precipitazioni) AS precipitazioni_media, AVG(altitudineghiacciai) AS altitudine_media, " +
+                "AVG(massaghiacciai) AS massa_media FROM parametriclimatici WHERE id_luogo = ?";
 
-        try (Connection connection = dbConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, nomeAreaGeografica);
-            ResultSet resultSet = statement.executeQuery();
-
-            if (resultSet.next()) {
-                medie.put("vento", resultSet.getDouble("vento_media"));
-                medie.put("umidita", resultSet.getDouble("umidita_media"));
-                medie.put("pressione", resultSet.getDouble("pressione_media"));
-                medie.put("temperatura", resultSet.getDouble("temperatura_media"));
-                medie.put("precipitazioni", resultSet.getDouble("precipitazioni_media"));
-                medie.put("altitudine", resultSet.getDouble("altitudine_media"));
-                medie.put("massa", resultSet.getDouble("massa_media"));
+        try (Connection connection = dbConnection(); PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, areaId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                averages.put("vento", rs.getDouble("vento_media"));
+                averages.put("umidita", rs.getDouble("umidita_media"));
+                averages.put("pressione", rs.getDouble("pressione_media"));
+                averages.put("temperatura", rs.getDouble("temperatura_media"));
+                averages.put("precipitazioni", rs.getDouble("precipitazioni_media"));
+                averages.put("altitudineghiacciai", rs.getDouble("altitudine_media"));
+                averages.put("massaghiacciai", rs.getDouble("massa_media"));
+                System.out.println("DEBUG: Media calcolata = " + averages);
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new RemoteException("Errore durante il calcolo delle medie climatiche", e);
         }
 
-        return medie;
+        return averages;
     }
 
     @Override
-    public Map<String, Integer> getModes(String nomeAreaGeografica) throws RemoteException {
-        Map<String, Integer> mode = new HashMap<>();
-        String[] parametri = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
+    public Map<String, Integer> getModesById(int areaId) throws RemoteException {
+        Map<String, Integer> modes = new HashMap<>();
+        String[] parameters = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
 
         try (Connection connection = dbConnection()) {
-            for (String parametro : parametri) {
-                String query = "SELECT parametriclimatici." + parametro + " AS valore_piu_frequente, " +
-                        "COUNT(parametriclimatici." + parametro + ") AS numero_occorrenze " +
-                        "FROM parametriclimatici " +
-                        "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
-                        "WHERE coordinatemonitoraggio.nome_ascii = ? AND parametriclimatici." + parametro + " IS NOT NULL " +
-                        "GROUP BY parametriclimatici." + parametro + " " +
-                        "ORDER BY numero_occorrenze DESC, parametriclimatici." + parametro + " ASC " +
-                        "LIMIT 1";
+            for (String parameter : parameters) {
+                String query = "SELECT " + parameter + ", COUNT(" + parameter + ") AS occorrenze " +
+                        "FROM parametriclimatici WHERE id_luogo = ? " +
+                        "GROUP BY " + parameter + " " +
+                        "ORDER BY occorrenze DESC, " + parameter + " ASC LIMIT 1";
 
-                try (PreparedStatement statement = connection.prepareStatement(query)) {
-                    statement.setString(1, nomeAreaGeografica);
-                    ResultSet resultSet = statement.executeQuery();
-
-                    if (resultSet.next()) {
-                        int valore = resultSet.getInt("valore_piu_frequente");
-                        System.out.println("Parametro: " + parametro + ", Moda: " + valore);
-                        mode.put(parametro, valore);
+                try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setInt(1, areaId);
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        modes.put(parameter, rs.getInt(parameter));
                     } else {
-                        System.out.println("Nessuna moda trovata per " + parametro);
-                        mode.put(parametro, 0); // Default
+                        modes.put(parameter, 0); // Default se non ci sono dati
                     }
                 }
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new RemoteException("Errore durante il calcolo delle mode climatiche", e);
         }
 
-        return mode;
+        System.out.println("DEBUG: Modes calcolate = " + modes);
+        return modes;
     }
 
     @Override
-    public Map<String, Double> getMedians(String nomeAreaGeografica) throws RemoteException {
-        Map<String, Double> mediane = new HashMap<>();
-        String[] parametri = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
+    public Map<String, Double> getMediansById(int areaId) throws RemoteException {
+        Map<String, Double> medians = new HashMap<>();
+        String[] parameters = {"vento", "umidita", "pressione", "temperatura", "precipitazioni", "altitudineghiacciai", "massaghiacciai"};
 
         try (Connection connection = dbConnection()) {
-            for (String parametro : parametri) {
-                String query = "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY parametriclimatici." + parametro + ") AS mediana " +
-                        "FROM parametriclimatici " +
-                        "INNER JOIN coordinatemonitoraggio ON parametriclimatici.id_luogo = coordinatemonitoraggio.id_luogo " +
-                        "WHERE coordinatemonitoraggio.nome_ascii = ?";
+            for (String parameter : parameters) {
+                String query = "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY " + parameter + ") AS mediana " +
+                        "FROM parametriclimatici WHERE id_luogo = ?";
 
-                try (PreparedStatement statement = connection.prepareStatement(query)) {
-                    statement.setString(1, nomeAreaGeografica);
-                    ResultSet resultSet = statement.executeQuery();
-
-                    if (resultSet.next()) {
-                        double mediana = resultSet.getDouble("mediana");
-                        System.out.println("Parametro: " + parametro + ", Mediana: " + mediana);
-                        mediane.put(parametro, mediana);
+                try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setInt(1, areaId);
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        medians.put(parameter, rs.getDouble("mediana"));
                     } else {
-                        System.out.println("Nessuna mediana trovata per " + parametro);
-                        mediane.put(parametro, 0.0); // Default
+                        medians.put(parameter, 0.0); // Default se non ci sono dati
                     }
                 }
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new RemoteException("Errore durante il calcolo delle mediane climatiche", e);
         }
 
-        return mediane;
+        System.out.println("DEBUG: Medians calcolate = " + medians);
+        return medians;
+    }
+
+
+    @Override
+    public String getCommentForParameterById(int idParametro, String parameterNoteColumn) throws RemoteException {
+        String query = "SELECT " + parameterNoteColumn + " AS commento " +
+                "FROM parametriclimatici " +
+                "WHERE id_parametro = ?";
+        try (Connection connection = dbConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+
+            stmt.setInt(1, idParametro); // Usa id_parametro come filtro
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getString("commento") != null ? rs.getString("commento") : "Nessun commento disponibile.";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RemoteException("Errore durante il recupero del commento", e);
+        }
+        return "Nessun commento disponibile.";
     }
 
     public static void main(String[] args) {

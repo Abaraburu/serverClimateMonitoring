@@ -5,55 +5,186 @@ import java.rmi.RemoteException;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Interfaccia per il servizio di monitoraggio climatico.
+ * Contiene metodi per la gestione delle comunicazioni tra applicazione client e applicazione server.
+ */
 public interface ClimateInterface extends Remote {
-    // Metodo per ottenere tutti i dati
+    /**
+     * Ottiene tutti i dati delle aree monitorate.
+     * @return Lista di mappe con ID e nome delle aree.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<Map<String, String>> getAllData() throws RemoteException;
 
-    // Metodo per cercare con coordinate e raggio
+    /**
+     * Cerca le aree in base alle coordinate e al raggio.
+     * @param latitude Latitudine.
+     * @param longitude Longitudine.
+     * @param radius Raggio in km.
+     * @return Lista di mappe con i dettagli delle aree.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<Map<String, String>> searchByCoordinates(double latitude, double longitude, double radius) throws RemoteException;
 
-    // Metodo per la ricerca basata sul nome
+    /**
+     * Cerca le aree in base al nome.
+     * @param name Nome da cercare.
+     * @return Lista di mappe con i dettagli delle aree.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<Map<String, String>> searchByName(String name) throws RemoteException;
 
-    // Metodo per ottenere solo ID_Luogo e Nome ASCII
+    /**
+     * Ottiene i dati minimali delle aree monitorate.
+     * @return Lista di mappe con ID e nome ASCII delle aree.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<Map<String, String>> getMinimalLocationData() throws RemoteException;
 
-    // Metodo per validare credenziali
+    /**
+     * Valida le credenziali di un utente.
+     * @param userId ID utente.
+     * @param password Password utente.
+     * @return True se le credenziali sono valide, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean validateCredentials(String userId, String password) throws RemoteException;
 
-    // Metodo per registrare un centro di monitoraggio
+    /**
+     * Registra un nuovo centro di monitoraggio.
+     * @param name Nome del centro.
+     * @param address Indirizzo del centro.
+     * @param areaIds Lista degli ID delle aree associate.
+     * @return True se la registrazione ha successo, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds) throws RemoteException;
 
-    // Metodo per il controllo nell aggiunta del centro di monitoraggio
+    /**
+     * Controlla se esiste un centro di monitoraggio con nome o indirizzo duplicato.
+     * @param name Nome del centro.
+     * @param address Indirizzo del centro.
+     * @return True se esiste un duplicato, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean checkDuplicateMonitoringCenter(String name, String address) throws RemoteException;
 
-    // Metodo per ottenere tutti i centri di monitoraggio
+    /**
+     * Ottiene la lista di tutti i centri di monitoraggio.
+     * @return Lista di nomi dei centri.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<String> getAllMonitoringCenters() throws RemoteException;
 
-    // Metodo per registrare un operatore con controlli su duplicati
+    /**
+     * Registra un nuovo operatore.
+     * @param nome Nome dell'operatore.
+     * @param cognome Cognome dell'operatore.
+     * @param codiceFiscale Codice fiscale dell'operatore.
+     * @param email Email dell'operatore.
+     * @param username Username dell'operatore.
+     * @param password Password dell'operatore.
+     * @param centroMonitoraggio Centro di monitoraggio associato.
+     * @return True se la registrazione ha successo, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean registerOperator(String nome, String cognome, String codiceFiscale, String email, String username, String password, String centroMonitoraggio) throws RemoteException;
 
-    // Metodo per registrare un'area di interesse
+    /**
+     * Registra una nuova area di interesse.
+     * @param nome Nome dell'area.
+     * @param nomeASCII Nome ASCII dell'area.
+     * @param stato Stato dell'area.
+     * @param statoCodice Codice dello stato.
+     * @param latitudine Latitudine dell'area.
+     * @param longitudine Longitudine dell'area.
+     * @return True se la registrazione ha successo, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean registerArea(String nome, String nomeASCII, String stato, String statoCodice, double latitudine, double longitudine) throws RemoteException;
 
-    // Metodo per sapere l'username
+    /**
+     * Ottiene le aree associate a un utente.
+     * @param username Username dell'utente.
+     * @return Lista di mappe con i dettagli delle aree.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     List<Map<String, String>> getLocationsForUser(String username) throws RemoteException;
 
-    // Metodo per registrare i parametri climatici
+    /**
+     * Aggiunge parametri climatici per un'area.
+     * @param username Username dell'utente.
+     * @param nomeArea Nome dell'area.
+     * @param data Data della rilevazione.
+     * @param ora Ora della rilevazione.
+     * @param vento Valore del vento.
+     * @param umidita Valore dell'umidità.
+     * @param pressione Valore della pressione.
+     * @param temperatura Valore della temperatura.
+     * @param precipitazioni Valore delle precipitazioni.
+     * @param altitudine Valore dell'altitudine dei ghiacciai.
+     * @param massa Valore della massa dei ghiacciai.
+     * @param commentoVento Commento sul vento.
+     * @param commentoUmidita Commento sull'umidità.
+     * @param commentoPressione Commento sulla pressione.
+     * @param commentoTemperatura Commento sulla temperatura.
+     * @param commentoPrecipitazioni Commento sulle precipitazioni.
+     * @param commentoAltitudine Commento sull'altitudine.
+     * @param commentoMassa Commento sulla massa.
+     * @return True se l'aggiunta ha successo, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean addClimaticParameters(String username, String nomeArea, String data, String ora, int vento, int umidita, int pressione, int temperatura, int precipitazioni, int altitudine, int massa, String commentoVento, String commentoUmidita, String commentoPressione, String commentoTemperatura, String commentoPrecipitazioni, String commentoAltitudine, String commentoMassa) throws RemoteException;
 
-    // Metodo per controllare non ci siano già parametri climatici per lo stesso luogo con stesso giorno e ora
+    /**
+     * Controlla se esistono già parametri climatici per lo stesso luogo, data e ora.
+     * @param nomeArea Nome dell'area.
+     * @param data Data della rilevazione.
+     * @param ora Ora della rilevazione.
+     * @return True se esistono già, false altrimenti.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
     boolean checkExistingClimaticParameter(String nomeArea, String data, String ora) throws RemoteException;
 
-    // Metodo per ricevere i dati dell'area
-    List<Map<String, String>> getClimaticData(String areaName) throws RemoteException;
+    /**
+     * Ottiene dati climatici tramite ID dell'area.
+     * @param areaId ID dell'area.
+     * @return Lista di mappe con i dettagli dei dati climatici.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
+    List<Map<String, String>> getClimaticDataById(int areaId) throws RemoteException;
 
-    // Metodo per ricevere la media
-    Map<String, Double> getAverages(String areaName) throws RemoteException;
+    /**
+     * Calcola le medie climatiche tramite ID dell'area.
+     * @param areaId ID dell'area.
+     * @return Mappa con le medie dei parametri climatici.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
+    Map<String, Double> getAveragesById(int areaId) throws RemoteException;
 
-    // Metodo per ricevere la moda
-    Map<String, Integer> getModes(String areaName) throws RemoteException;
+    /**
+     * Calcola le mode climatiche tramite ID dell'area.
+     * @param areaId ID dell'area.
+     * @return Mappa con le mode dei parametri climatici.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
+    Map<String, Integer> getModesById(int areaId) throws RemoteException;
 
-    // Metodo per ricevere la mediana
-    Map<String, Double> getMedians(String areaName) throws RemoteException;
+    /**
+     * Calcola le mediane climatiche tramite ID dell'area.
+     * @param areaId ID dell'area.
+     * @return Mappa con le mediane dei parametri climatici.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
+    Map<String, Double> getMediansById(int areaId) throws RemoteException;
+
+    /**
+     * Ottiene il commento di un parametro climatico tramite ID del parametro.
+     * @param idParametro ID del parametro.
+     * @param parameterNoteColumn Nome della colonna per il commento.
+     * @return Commento associato al parametro.
+     * @throws RemoteException In caso di errore di comunicazione.
+     */
+    String getCommentForParameterById(int idParametro, String parameterNoteColumn) throws RemoteException;
 }
