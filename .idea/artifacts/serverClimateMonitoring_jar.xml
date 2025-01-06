@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="serverClimateMonitoring:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/serverClimateMonitoring_jar</output-path>
+    <root id="archive" name="serverClimateMonitoring.jar">
+      <element id="module-output" name="serverClimateMonitoring" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/postgresql/postgresql/42.3.3/postgresql-42.3.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/checkerframework/checker-qual/3.5.0/checker-qual-3.5.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/formdev/flatlaf/3.0/flatlaf-3.0.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

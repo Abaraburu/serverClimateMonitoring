@@ -17,7 +17,7 @@ import java.util.*;
  *
  * @author Agliati Lorenzo 753378
  */
-public class serverStart extends JFrame implements ClimateInterface {
+public class serverCM extends JFrame implements ClimateInterface {
 
     /**
      * Bottone per avviare il server.
@@ -65,10 +65,10 @@ public class serverStart extends JFrame implements ClimateInterface {
     private boolean isServerRunning = false;
 
     /**
-     * Costruttore della classe serverStart.
+     * Costruttore della classe serverCM.
      * Inizializza la GUI e i listener degli eventi.
      */
-    public serverStart() {
+    public serverCM() {
         setContentPane(serverStartPanel); // Pannello principale della GUI
         setTitle("Server Climate Monitoring"); // Imposta il titolo della finestra
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Configura l'azione di chiusura
@@ -85,19 +85,19 @@ public class serverStart extends JFrame implements ClimateInterface {
                 if (!isServerRunning) {
                     String ipAndPort = textfieldIPandPORT.getText().trim();
                     if (ipAndPort.isEmpty() || !ipAndPort.matches("^\\S+:\\d+$")) {
-                        JOptionPane.showMessageDialog(serverStart.this, "Inserire un valore valido nel formato IP:PORT.", "Errore", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(serverCM.this, "Inserire un valore valido nel formato IP:PORT.", "Errore", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
                     try {
                         System.out.println("Valore inserito nella textfield: " + ipAndPort); // Debug: mostra il valore
                         startRmiServer(); // Avvia il server RMI
-                        JOptionPane.showMessageDialog(serverStart.this, "Server avviato con successo!");
+                        JOptionPane.showMessageDialog(serverCM.this, "Server avviato con successo!");
                     } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(serverStart.this, "Errore durante l'avvio del server: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(serverCM.this, "Errore durante l'avvio del server: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
                         ex.printStackTrace();
                     }
                 } else {
-                    JOptionPane.showMessageDialog(serverStart.this, "Il server è già in esecuzione!");
+                    JOptionPane.showMessageDialog(serverCM.this, "Il server è già in esecuzione!");
                 }
             }
         });
@@ -109,10 +109,10 @@ public class serverStart extends JFrame implements ClimateInterface {
                 if (isServerRunning) {
                     isServerRunning = false; // Cambia lo stato del server
                     status.setText("Status: Server fermo."); // Aggiorna l'etichetta dello stato
-                    JOptionPane.showMessageDialog(serverStart.this, "Server arrestato."); // Messaggio di conferma
+                    JOptionPane.showMessageDialog(serverCM.this, "Server arrestato."); // Messaggio di conferma
                     System.exit(0); // Chiude l'applicazione
                 } else {
-                    JOptionPane.showMessageDialog(serverStart.this, "Il server è già fermo!");
+                    JOptionPane.showMessageDialog(serverCM.this, "Il server è già fermo!");
                 }
             }
         });
@@ -888,7 +888,7 @@ public class serverStart extends JFrame implements ClimateInterface {
         // Esegui l'inizializzazione della GUI su un thread separato
         SwingUtilities.invokeLater(() -> {
             try {
-                new serverStart(); // Avvia la finestra principale del server
+                new serverCM(); // Avvia la finestra principale del server
             } catch (Exception e) {
                 e.printStackTrace(); // Stampa dettagli dell'errore per il debug
                 System.err.println("Errore durante l'avvio dell'applicazione: " + e.getMessage());
