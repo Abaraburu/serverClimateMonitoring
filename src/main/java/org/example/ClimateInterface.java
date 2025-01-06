@@ -8,6 +8,8 @@ import java.util.Map;
 /**
  * Interfaccia per il servizio di monitoraggio climatico.
  * Contiene metodi per la gestione delle comunicazioni tra applicazione client e applicazione server.
+ *
+ * @author Agliati Lorenzo 753378
  */
 public interface ClimateInterface extends Remote {
     /**
