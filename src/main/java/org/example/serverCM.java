@@ -43,16 +43,9 @@ public class serverCM extends JFrame implements ClimateInterface {
      * Campo di testo per l'IP e la porta del database.
      */
     private JTextField textfieldIPandPORT;
-
-    /**
-     * Nome utente per il database.
-     */
-    private static final String USER = "postgres";
-
-    /**
-     * Password per il database.
-     */
-    private static final String PASSWORD = "Asdf1234";
+    private JTextField textFieldDBnome;
+    private JTextField textFieldUser;
+    private JTextField textFieldPassword;
 
     /**
      * Connessione al database.
@@ -89,7 +82,7 @@ public class serverCM extends JFrame implements ClimateInterface {
                         return;
                     }
                     try {
-                        System.out.println("Valore inserito nella textfield: " + ipAndPort); // Debug: mostra il valore
+                        System.out.println("Valore inserito nella textfieldIPandPORT: " + ipAndPort); // Debug: mostra il valore
                         startRmiServer(); // Avvia il server RMI
                         JOptionPane.showMessageDialog(serverCM.this, "Server avviato con successo!");
                     } catch (Exception ex) {
@@ -138,7 +131,9 @@ public class serverCM extends JFrame implements ClimateInterface {
      */
     private String getDatabaseUrl() {
         String ipAndPort = textfieldIPandPORT.getText().trim(); // Ottiene l'IP e la porta dal campo di testo
-        return "jdbc:postgresql://" + ipAndPort + "/climatedb"; // Costruisce l'URL del database
+        String dbName = textFieldDBnome.getText().trim(); // Ottiene il nome del database
+        System.out.println("DEBUG (Server): ipAndPort = " + ipAndPort + " dbName = " + dbName); // Debug per monitorare i dati
+        return "jdbc:postgresql://" + ipAndPort + "/" + dbName; // Costruisce l'URL del database (climatedb)
     }
 
     /**
@@ -149,7 +144,10 @@ public class serverCM extends JFrame implements ClimateInterface {
     private Connection dbConnection() throws SQLException {
         if (conn == null || conn.isClosed()) { // Verifica se la connessione è chiusa
             String url = getDatabaseUrl(); // Ottiene l'URL del database
-            conn = DriverManager.getConnection(url, USER, PASSWORD); // Connette al database
+            String user = textFieldUser.getText().trim(); // Ottiene il nome utente per il database
+            String password = textFieldPassword.getText().trim(); // Ottiene la password dell utente per il database
+            conn = DriverManager.getConnection(url, user, password); // Connette al database
+            //System.out.println("DEBUG (Server): user = " + user + " password = " + password);
             System.out.println("Connessione al database avvenuta con successo."); // Debug: connessione avvenuta
         }
         return conn; // Ritorna la connessione attiva
@@ -211,32 +209,40 @@ public class serverCM extends JFrame implements ClimateInterface {
     }
 
     /**
-     * Registra un nuovo centro di monitoraggio e associa aree esistenti.
-     * @param name Nome del centro di monitoraggio.
-     * @param address Indirizzo del centro di monitoraggio.
-     * @param areaIds Lista degli ID delle aree da associare al centro.
-     * @return True se la registrazione ha successo, false altrimenti.
-     * @throws RemoteException In caso di errore durante la comunicazione o l'operazione sul database.
+     * Registra un nuovo centro di monitoraggio nel sistema, associa il centro alle aree specificate e, se richiesto, aggiorna il centro di monitoraggio associato all'operatore.
+     * @param name              Nome del centro di monitoraggio.
+     * @param address           Indirizzo del centro di monitoraggio.
+     * @param areaIds           Lista degli ID delle aree da associare al centro.
+     * @param isCheckboxChecked Indica se il centro di monitoraggio deve essere associato all'operatore.
+     * @param username          Nome utente dell'operatore al quale associare il centro.
+     * @return {@code true} se la registrazione ha successo, {@code false} altrimenti.
+     * @throws RemoteException Se si verifica un errore di comunicazione o durante l'esecuzione della query.
      */
     @Override
-    public boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds) throws RemoteException {
+    public boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds, boolean isCheckboxChecked, String username) throws RemoteException {
         String insertCenterQuery = "INSERT INTO centrimonitoraggio (nome, indirizzo) VALUES (?, ?) RETURNING id_centromonitoraggio"; // Query per inserire il centro
+        String updateOperatorQuery = "UPDATE operatoriregistrati SET id_centromonitoraggio = ? WHERE username = ?"; // Query per aggiornare l'operatore
         String insertAssociationQuery = "INSERT INTO centroarea (id_centromonitoraggio, id_luogo) VALUES (?, ?)"; // Query per associare le aree
 
-        try (Connection connection = dbConnection()) { // Ottiene la connessione al database
+        Connection connection = null;
+
+        try {
+            connection = dbConnection(); // Ottiene la connessione al database
             connection.setAutoCommit(false); // Avvia una transazione
 
             int centerId;
-            try (PreparedStatement centerStmt = connection.prepareStatement(insertCenterQuery)) { // Prepara la query di inserimento
-                centerStmt.setString(1, name); // Imposta il nome
-                centerStmt.setString(2, address); // Imposta l'indirizzo
-                ResultSet rs = centerStmt.executeQuery(); // Esegue la query e ottiene l'ID
 
-                if (rs.next()) {
-                    centerId = rs.getInt("id_centromonitoraggio"); // Recupera l'ID del centro
-                } else {
-                    connection.rollback(); // Annulla la transazione
-                    throw new SQLException("Errore nel recuperare l'ID del centro di monitoraggio appena inserito.");
+            // Creazione del centro di monitoraggio
+            try (PreparedStatement centerStmt = connection.prepareStatement(insertCenterQuery)) {
+                centerStmt.setString(1, name);
+                centerStmt.setString(2, address);
+                try (ResultSet rs = centerStmt.executeQuery()) {
+                    if (rs.next()) {
+                        centerId = rs.getInt("id_centromonitoraggio"); // Recupera l'ID del centro
+                    } else {
+                        connection.rollback();
+                        throw new SQLException("Errore nel recuperare l'ID del centro di monitoraggio appena inserito.");
+                    }
                 }
             }
 
@@ -249,12 +255,37 @@ public class serverCM extends JFrame implements ClimateInterface {
                 }
             }
 
+            // Se la checkbox è selezionata, associa il centro all'operatore
+            if (isCheckboxChecked) {
+                try (PreparedStatement updateStmt = connection.prepareStatement(updateOperatorQuery)) {
+                    updateStmt.setInt(1, centerId);
+                    updateStmt.setString(2, username); // Usa l'username anziché l'ID
+                    updateStmt.executeUpdate();
+                }
+            }
+
             connection.commit(); // Conclude la transazione
-            return true; // Restituisce successo
+            return true;
 
         } catch (SQLException e) {
-            e.printStackTrace(); // Stampa l'errore per il debug
-            throw new RemoteException("Errore durante la registrazione del centro di monitoraggio", e); // Propaga l'eccezione
+            if (connection != null) {
+                try {
+                    connection.rollback(); // Annulla la transazione in caso di errore
+                } catch (SQLException rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            throw new RemoteException("Errore durante la registrazione del centro di monitoraggio.", e);
+
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close(); // Chiude la connessione
+                } catch (SQLException closeEx) {
+                    closeEx.printStackTrace();
+                }
+            }
         }
     }
 

@@ -55,13 +55,15 @@ public interface ClimateInterface extends Remote {
 
     /**
      * Registra un nuovo centro di monitoraggio.
-     * @param name Nome del centro.
+     * @param name Nome del centro di monitoraggio.
      * @param address Indirizzo del centro.
      * @param areaIds Lista degli ID delle aree associate.
+     * @param isCheckboxChecked Indica se la checkbox è selezionata.
+     * @param username Nome utente dell'operatore associato.
      * @return True se la registrazione ha successo, false altrimenti.
      * @throws RemoteException In caso di errore di comunicazione.
      */
-    boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds) throws RemoteException;
+    boolean registerMonitoringCenter(String name, String address, List<Integer> areaIds, boolean isCheckboxChecked, String username) throws RemoteException;
 
     /**
      * Controlla se esiste un centro di monitoraggio con nome o indirizzo duplicato.
