@@ -46,6 +46,7 @@ public class serverCM extends JFrame implements ClimateInterface {
     private JTextField textFieldDBnome;
     private JTextField textFieldUser;
     private JTextField textFieldPassword;
+    private JButton buttonCreateDB;
 
     /**
      * Connessione al database.
@@ -136,6 +137,7 @@ public class serverCM extends JFrame implements ClimateInterface {
         textFieldDBnome.setEnabled(false);
         textFieldUser.setEnabled(false);
         textFieldPassword.setEnabled(false);
+        buttonCreateDB.setEnabled(false);
     }
 
     /**
