@@ -191,4 +191,13 @@ public interface ClimateInterface extends Remote {
      * @throws RemoteException In caso di errore di comunicazione.
      */
     String getCommentForParameterById(int idParametro, String parameterNoteColumn) throws RemoteException;
+
+    /**
+     * Aggiorna il centro di monitoraggio associato a un operatore.
+     * @param username Username dell'operatore.
+     * @param nomeCentroMonitoraggio Nome del nuovo centro di monitoraggio.
+     * @return True se l'aggiornamento ha successo, false altrimenti.
+     * @throws RemoteException In caso di errore durante la comunicazione o l'operazione sul database.
+     */
+    boolean updateCentroMonitoraggioOperatore(String username, String nomeCentroMonitoraggio) throws RemoteException;
 }

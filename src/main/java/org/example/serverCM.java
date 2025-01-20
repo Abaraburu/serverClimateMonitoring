@@ -1079,6 +1079,34 @@ public class serverCM extends JFrame implements ClimateInterface {
     }
 
     /**
+     * Modifica il centro di monitoraggio di un determinato operatore.
+     * @param username username del operatore a cui verrà modificato il centro di monitoraggio.
+     * @param nomeCentroMonitoraggio Nome del centro di monitoraggio che verrà messo all'operatore.
+     * @return True se il centro di monitoraggio è stato aggiornato con successo, false altrimenti.
+     * @throws RemoteException In caso di errore durante la comunicazione o l'operazione sul database.
+     */
+    @Override
+    public boolean updateCentroMonitoraggioOperatore(String username, String nomeCentroMonitoraggio) throws RemoteException {
+        String query = "UPDATE operatoriregistrati SET id_centromonitoraggio = " +
+                "(SELECT id_centromonitoraggio FROM centrimonitoraggio WHERE nome = ?) " +
+                "WHERE username = ?";
+
+        try (Connection connection = dbConnection(); // Ottiene la connessione al database
+             PreparedStatement stmt = connection.prepareStatement(query)) { // Prepara la query SQL
+
+            // Imposta i parametri della query
+            stmt.setString(1, nomeCentroMonitoraggio); // Nome del centro di monitoraggio
+            stmt.setString(2, username); // Username dell'operatore
+
+            int rowsUpdated = stmt.executeUpdate(); // Esegue l'aggiornamento
+            return rowsUpdated > 0; // Ritorna true se almeno una riga è stata aggiornata
+
+        } catch (SQLException e) {
+            throw new RemoteException("Errore durante l'aggiornamento del centro di monitoraggio: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Metodo principale per avviare l'applicazione server.
      * Imposta il tema grafico e inizializza la GUI.
      * @param args Argomenti della riga di comando (non utilizzati).
