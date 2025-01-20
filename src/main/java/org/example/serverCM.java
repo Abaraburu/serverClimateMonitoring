@@ -127,6 +127,14 @@ public class serverCM extends JFrame implements ClimateInterface {
                 }
             }
         });
+
+        // Listener per creare il database mediante query
+        buttonCreateDB.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                createDatabaseAndTables();
+            }
+        });
     }
 
     /**
@@ -138,6 +146,124 @@ public class serverCM extends JFrame implements ClimateInterface {
         textFieldUser.setEnabled(false);
         textFieldPassword.setEnabled(false);
         buttonCreateDB.setEnabled(false);
+        startServerButton.setEnabled(false);
+        stopServerButton.setEnabled(true);
+    }
+
+    /**
+     * Crea il database e le tabelle necessarie per il funzionamento del server.
+     */
+    private void createDatabaseAndTables() {
+        // Ottieni i valori di IP:Port, nome database, user e password dalle text field
+        String ipAndPort = textfieldIPandPORT.getText().trim();
+        String dbName = textFieldDBnome.getText().trim();
+        String user = textFieldUser.getText().trim();
+        String password = textFieldPassword.getText().trim();
+
+        // Verifica che i campi non siano vuoti
+        if (ipAndPort.isEmpty() || dbName.isEmpty() || user.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(serverCM.this, "Inserire tutti i dati richiesti: IP:Port, nome database, utente e password.", "Errore", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Mostra un pop-up di conferma
+        int confirm = JOptionPane.showConfirmDialog(
+                serverCM.this,
+                "Sei sicuro di voler creare un nuovo database?\n" +
+                        "Continuando verrà creato un nuovo database, verranno utilizzati i valori inseriti nelle textfield.\n" +
+                        "Si consiglia di lasciare i valori di base nelle textfield.",
+                "Conferma creazione database",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        // Se l'utente non conferma, esci dal metodo
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // Costruisci l'URL di connessione al database PostgreSQL (senza specificare il nome del database)
+        String url = "jdbc:postgresql://" + ipAndPort + "/postgres"; // Connessione al database di default "postgres"
+
+        try (Connection conn = DriverManager.getConnection(url, user, password);
+             Statement stmt = conn.createStatement()) {
+
+            // Verifica se il database esiste già
+            ResultSet rs = stmt.executeQuery("SELECT 1 FROM pg_database WHERE datname = '" + dbName + "'");
+            if (rs.next()) {
+                JOptionPane.showMessageDialog(serverCM.this, "Il database " + dbName + " esiste già.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                return; // Esci dal metodo se il database esiste già
+            }
+
+            // Crea il database
+            stmt.executeUpdate("CREATE DATABASE " + dbName);
+
+            // Connessione al database appena creato
+            String dbUrl = "jdbc:postgresql://" + ipAndPort + "/" + dbName;
+            try (Connection dbConn = DriverManager.getConnection(dbUrl, user, password);
+                 Statement dbStmt = dbConn.createStatement()) {
+
+                // Crea le tabelle con le foreign key
+                dbStmt.executeUpdate("CREATE TABLE IF NOT EXISTS centrimonitoraggio (" +
+                        "id_centromonitoraggio SERIAL PRIMARY KEY, " +
+                        "nome VARCHAR(100), " +
+                        "indirizzo VARCHAR(100))");
+
+                dbStmt.executeUpdate("CREATE TABLE IF NOT EXISTS coordinatemonitoraggio (" +
+                        "id_luogo SERIAL PRIMARY KEY, " +
+                        "latitudine NUMERIC(9,6), " +
+                        "longitudine NUMERIC(9,6), " +
+                        "nome VARCHAR(100), " +
+                        "stato VARCHAR(50), " +
+                        "nome_ascii VARCHAR(100), " +
+                        "stato_code VARCHAR(2))");
+
+                dbStmt.executeUpdate("CREATE TABLE IF NOT EXISTS operatoriregistrati (" +
+                        "id_operatore SERIAL PRIMARY KEY, " +
+                        "nome VARCHAR(50), " +
+                        "cognome VARCHAR(50), " +
+                        "codice_fiscale VARCHAR(16), " +
+                        "email VARCHAR(100), " +
+                        "password VARCHAR(255), " +
+                        "id_centromonitoraggio INTEGER REFERENCES centrimonitoraggio(id_centromonitoraggio), " +
+                        "username VARCHAR(50))");
+
+                dbStmt.executeUpdate("CREATE TABLE IF NOT EXISTS centroarea (" +
+                        "id_integer SERIAL PRIMARY KEY, " +
+                        "id_centromonitoraggio INTEGER REFERENCES centrimonitoraggio(id_centromonitoraggio), " +
+                        "id_luogo INTEGER REFERENCES coordinatemonitoraggio(id_luogo))");
+
+                dbStmt.executeUpdate("CREATE TABLE IF NOT EXISTS parametriclimatici (" +
+                        "id_parametro SERIAL PRIMARY KEY, " +
+                        "id_luogo INTEGER REFERENCES coordinatemonitoraggio(id_luogo), " +
+                        "id_centromonitoraggio INTEGER REFERENCES centrimonitoraggio(id_centromonitoraggio), " +
+                        "data_di_rilevazione DATE, " +
+                        "ora TIME WITHOUT TIME ZONE, " +
+                        "vento INTEGER, " +
+                        "vento_nota VARCHAR(256), " +
+                        "umidita INTEGER, " +
+                        "umidita_nota VARCHAR(256), " +
+                        "pressione INTEGER, " +
+                        "pressione_nota VARCHAR(256), " +
+                        "temperatura INTEGER, " +
+                        "temperatura_nota VARCHAR(256), " +
+                        "precipitazioni INTEGER, " +
+                        "precipitazioni_nota VARCHAR(256), " +
+                        "altitudineghiacciai INTEGER, " +
+                        "altitudineghiacciai_nota VARCHAR(256), " +
+                        "massaghiacciai INTEGER, " +
+                        "massaghiacciai_nota VARCHAR(256))");
+
+                JOptionPane.showMessageDialog(serverCM.this, "Database e tabelle creati con successo!");
+
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(serverCM.this, "Errore durante la creazione delle tabelle: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                ex.printStackTrace();
+            }
+
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(serverCM.this, "Errore durante la creazione del database: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
     }
 
     /**
