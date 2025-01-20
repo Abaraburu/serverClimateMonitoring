@@ -522,50 +522,56 @@ public class serverCM extends JFrame implements ClimateInterface {
      */
     @Override
     public boolean registerOperator(String nome, String cognome, String codiceFiscale, String email, String username, String password, String centroMonitoraggio) throws RemoteException {
-        String checkQuery = "SELECT COUNT(*) FROM operatoriregistrati WHERE codice_fiscale = ? OR email = ? OR username = ?"; // Query per verificare duplicati
-        String getIdQuery = "SELECT id_centromonitoraggio FROM centrimonitoraggio WHERE nome = ?"; // Query per ottenere l'ID del centro
-        String insertQuery = "INSERT INTO operatoriregistrati (nome, cognome, codice_fiscale, email, username, password, id_centromonitoraggio) VALUES (?, ?, ?, ?, ?, ?, ?)"; // Query per inserire l'operatore
+        String checkQuery = "SELECT COUNT(*) FROM operatoriregistrati WHERE codice_fiscale = ? OR email = ? OR username = ?";
+        String getIdQuery = "SELECT id_centromonitoraggio FROM centrimonitoraggio WHERE nome = ?";
+        String insertQuery = "INSERT INTO operatoriregistrati (nome, cognome, codice_fiscale, email, username, password, id_centromonitoraggio) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-        try (Connection connection = dbConnection()) { // Ottiene la connessione al database
+        try (Connection connection = dbConnection()) {
             // Controllo duplicati
             try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
-                checkStmt.setString(1, codiceFiscale); // Imposta il codice fiscale
-                checkStmt.setString(2, email); // Imposta l'email
-                checkStmt.setString(3, username); // Imposta l'username
-                ResultSet rs = checkStmt.executeQuery(); // Esegue la query
+                checkStmt.setString(1, codiceFiscale);
+                checkStmt.setString(2, email);
+                checkStmt.setString(3, username);
+                ResultSet rs = checkStmt.executeQuery();
 
-                if (rs.next() && rs.getInt(1) > 0) { // Controlla se esistono duplicati
-                    throw new RemoteException("Dati duplicati trovati per codice fiscale, email o username."); // Propaga l'errore
+                if (rs.next() && rs.getInt(1) > 0) {
+                    throw new RemoteException("Dati duplicati trovati per codice fiscale, email o username.");
                 }
             }
 
-            // Ottenere l'ID del centro monitoraggio
-            int idCentroMonitoraggio;
-            try (PreparedStatement getIdStmt = connection.prepareStatement(getIdQuery)) { // Prepara la query per ottenere l'ID
-                getIdStmt.setString(1, centroMonitoraggio); // Imposta il nome del centro
-                ResultSet rs = getIdStmt.executeQuery(); // Esegue la query
-                if (rs.next()) {
-                    idCentroMonitoraggio = rs.getInt("id_centromonitoraggio"); // Ottiene l'ID del centro
-                } else {
-                    throw new RemoteException("Centro monitoraggio non trovato: " + centroMonitoraggio); // Propaga l'errore se il centro non esiste
+            // Ottenere l'ID del centro monitoraggio (se selezionato)
+            Integer idCentroMonitoraggio = null;
+            if (centroMonitoraggio != null && !centroMonitoraggio.isEmpty()) {
+                try (PreparedStatement getIdStmt = connection.prepareStatement(getIdQuery)) {
+                    getIdStmt.setString(1, centroMonitoraggio);
+                    ResultSet rs = getIdStmt.executeQuery();
+                    if (rs.next()) {
+                        idCentroMonitoraggio = rs.getInt("id_centromonitoraggio");
+                    } else {
+                        throw new RemoteException("Centro monitoraggio non trovato: " + centroMonitoraggio);
+                    }
                 }
             }
 
             // Inserimento dell'operatore
-            try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) { // Prepara la query di inserimento
-                insertStmt.setString(1, nome); // Imposta il nome
-                insertStmt.setString(2, cognome); // Imposta il cognome
-                insertStmt.setString(3, codiceFiscale); // Imposta il codice fiscale
-                insertStmt.setString(4, email); // Imposta l'email
-                insertStmt.setString(5, username); // Imposta l'username
-                insertStmt.setString(6, password); // Imposta la password
-                insertStmt.setInt(7, idCentroMonitoraggio); // Imposta l'ID del centro
+            try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+                insertStmt.setString(1, nome);
+                insertStmt.setString(2, cognome);
+                insertStmt.setString(3, codiceFiscale);
+                insertStmt.setString(4, email);
+                insertStmt.setString(5, username);
+                insertStmt.setString(6, password);
+                if (idCentroMonitoraggio != null) {
+                    insertStmt.setInt(7, idCentroMonitoraggio);
+                } else {
+                    insertStmt.setNull(7, java.sql.Types.INTEGER); // Imposta il valore NULL per id_centromonitoraggio
+                }
 
-                int rowsInserted = insertStmt.executeUpdate(); // Esegue l'inserimento
-                return rowsInserted > 0; // Ritorna true se l'inserimento ha successo
+                int rowsInserted = insertStmt.executeUpdate();
+                return rowsInserted > 0;
             }
         } catch (SQLException e) {
-            throw new RemoteException("Errore durante la registrazione dell'operatore", e); // Propaga l'errore come RemoteException
+            throw new RemoteException("Errore durante la registrazione dell'operatore", e);
         }
     }
 
