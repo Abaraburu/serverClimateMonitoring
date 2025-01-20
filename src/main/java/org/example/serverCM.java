@@ -4,6 +4,9 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -171,7 +174,9 @@ public class serverCM extends JFrame implements ClimateInterface {
                 serverCM.this,
                 "Sei sicuro di voler creare un nuovo database?\n" +
                         "Continuando verrà creato un nuovo database, verranno utilizzati i valori inseriti nelle textfield.\n" +
-                        "Si consiglia di lasciare i valori di base nelle textfield.",
+                        "Il server verrà avviato in automatico con le impostazioni delle textfield attuali, questo per permettere l'inserimento delle aree geografiche di default prese dal file coordinatemonitoraggio_defaultdata.csv\n" +
+                        "Si consiglia di lasciare i valori di base nelle textfield.\n" +
+                        "Attendere la visualizzazione del messaggio di conclusione del processo: Server avviato con successo!",
                 "Conferma creazione database",
                 JOptionPane.YES_NO_OPTION
         );
@@ -181,7 +186,7 @@ public class serverCM extends JFrame implements ClimateInterface {
             return;
         }
 
-        // Costruisci l'URL di connessione al database PostgreSQL (senza specificare il nome del database)
+        // Costruisci l'URL di connessione al database PostgreSQL
         String url = "jdbc:postgresql://" + ipAndPort + "/postgres"; // Connessione al database di default "postgres"
 
         try (Connection conn = DriverManager.getConnection(url, user, password);
@@ -255,6 +260,21 @@ public class serverCM extends JFrame implements ClimateInterface {
 
                 JOptionPane.showMessageDialog(serverCM.this, "Database e tabelle creati con successo!");
 
+                // Importa i dati dal file CSV
+                importDefaultDataFromCSV(dbConn);
+
+                // Avvia il server automaticamente
+                try {
+                    startRmiServer();
+                    JOptionPane.showMessageDialog(serverCM.this, "Server avviato con successo!");
+                } catch (RemoteException e) {
+                    JOptionPane.showMessageDialog(serverCM.this, "Errore durante l'avvio del server: " + e.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
+                }
+
+                // Disabilita le text field dopo l'avvio del server
+                disableThings();
+
             } catch (SQLException ex) {
                 JOptionPane.showMessageDialog(serverCM.this, "Errore durante la creazione delle tabelle: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
                 ex.printStackTrace();
@@ -263,6 +283,53 @@ public class serverCM extends JFrame implements ClimateInterface {
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(serverCM.this, "Errore durante la creazione del database: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
             ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Importa i dati delle aree di monitoraggio da un file CSV, le aree dentro suddetto file sono le aree fornite coi pdf che descrivono le specifiche del progetto. Come richiesto dalle specifiche del progetto sono solo le are dello stato italiano.
+     * @throws RemoteException In caso di errore.
+     */
+    private void importDefaultDataFromCSV(Connection conn) {
+        String csvFile = "coordinatemonitoraggio_defaultdata.csv"; // Percorso del file CSV
+        String line;
+        String csvSplitBy = ","; // Separatore utilizzato nel file CSV
+
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+            // Salta la prima riga (header)
+            br.readLine();
+
+            // Leggi il file riga per riga
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(csvSplitBy);
+
+                // Estrai i dati dalla riga
+                String geonameId = data[0].trim();
+                String name = data[1].trim();
+                String asciiName = data[2].trim();
+                String countryCode = data[3].trim();
+                String countryName = data[4].trim();
+                double latitude = Double.parseDouble(data[5].trim());
+                double longitude = Double.parseDouble(data[6].trim());
+
+                // Inserisci i dati nella tabella coordinatemonitoraggio
+                String insertQuery = "INSERT INTO coordinatemonitoraggio (nome, nome_ascii, stato, stato_code, latitudine, longitudine) VALUES (?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+                    pstmt.setString(1, name);
+                    pstmt.setString(2, asciiName);
+                    pstmt.setString(3, countryName);
+                    pstmt.setString(4, countryCode);
+                    pstmt.setDouble(5, latitude);
+                    pstmt.setDouble(6, longitude);
+                    pstmt.executeUpdate();
+                } catch (SQLException e) {
+                    JOptionPane.showMessageDialog(serverCM.this, "Errore durante l'inserimento dei dati: " + e.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
+                }
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(serverCM.this, "Errore durante la lettura del file CSV: " + e.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
     }
 
