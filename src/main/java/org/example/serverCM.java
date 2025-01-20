@@ -81,10 +81,27 @@ public class serverCM extends JFrame implements ClimateInterface {
                         JOptionPane.showMessageDialog(serverCM.this, "Inserire un valore valido nel formato IP:PORT.", "Errore", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
+
+                    String dbName = textFieldDBnome.getText().trim();
+                    if (dbName.isEmpty()) {
+                        JOptionPane.showMessageDialog(serverCM.this, "Il nome del database non può essere vuoto.", "Errore", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Verifica le credenziali del database
+                    if (!validateDatabaseCredentials()) {
+                        JOptionPane.showMessageDialog(serverCM.this, "Credenziali del database non valide. Verifica nome database, utente e password.", "Errore", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
                     try {
                         System.out.println("Valore inserito nella textfieldIPandPORT: " + ipAndPort); // Debug: mostra il valore
                         startRmiServer(); // Avvia il server RMI
                         JOptionPane.showMessageDialog(serverCM.this, "Server avviato con successo!");
+
+                        // Disabilita le text field dopo l'avvio del server
+                        disableThings();
+
                     } catch (Exception ex) {
                         JOptionPane.showMessageDialog(serverCM.this, "Errore durante l'avvio del server: " + ex.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
                         ex.printStackTrace();
@@ -109,6 +126,16 @@ public class serverCM extends JFrame implements ClimateInterface {
                 }
             }
         });
+    }
+
+    /**
+     * Disabilita tutte le text field nel pannello principale.
+     */
+    private void disableThings() {
+        textfieldIPandPORT.setEnabled(false);
+        textFieldDBnome.setEnabled(false);
+        textFieldUser.setEnabled(false);
+        textFieldPassword.setEnabled(false);
     }
 
     /**
@@ -151,6 +178,21 @@ public class serverCM extends JFrame implements ClimateInterface {
             System.out.println("Connessione al database avvenuta con successo."); // Debug: connessione avvenuta
         }
         return conn; // Ritorna la connessione attiva
+    }
+
+    /**
+     * Verifica se le credenziali del database sono valide tentando di stabilire una connessione.
+     * @return True se la connessione ha successo, false altrimenti.
+     */
+    private boolean validateDatabaseCredentials() {
+        try {
+            Connection testConn = DriverManager.getConnection(getDatabaseUrl(), textFieldUser.getText().trim(), textFieldPassword.getText().trim());
+            testConn.close(); // Chiudi la connessione di test
+            return true;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(serverCM.this, "Errore di connessione al database: " + e.getMessage(), "Errore", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
     }
 
     /**
